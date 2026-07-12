@@ -1,0 +1,182 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile in the EduGlobal365 application.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "description": "User's email address"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["student", "teacher", "builder", "admin"],
+          "description": "User's role in the platform"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "User's display name"
+        },
+        "grade": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "location": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "level": {
+          "type": "number"
+        },
+        "points": {
+          "type": "number"
+        },
+        "streak": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "number"
+        },
+        "updatedAt": {
+          "type": "number"
+        }
+      },
+      "required": ["email", "role", "name", "createdAt", "updatedAt"]
+    },
+    "CourseMaterial": {
+      "title": "Course Material",
+      "description": "A learning resource created by teachers or the AI agent.",
+      "type": "object",
+      "properties": {
+        "grade": {
+          "type": "string",
+          "maxLength": 20
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "topic": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "textContent": {
+          "type": "string",
+          "maxLength": 50000
+        },
+        "hasAudio": {
+          "type": "boolean"
+        },
+        "moduleId": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "toolId": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "resourceUrl": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "dbaCode": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "authorId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "timestamp": {
+          "type": "number"
+        }
+      },
+      "required": ["grade", "subject", "topic", "textContent", "authorId", "timestamp"]
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "A message in a learning session.",
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["user", "model"]
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 10000
+        },
+        "timestamp": {
+          "type": "number"
+        },
+        "track": {
+          "type": "string",
+          "enum": ["student", "teacher", "builder", "admin"]
+        },
+        "subject": {
+          "type": "string",
+          "maxLength": 100
+        }
+      },
+      "required": ["role", "text", "timestamp"]
+    },
+    "BuilderProject": {
+      "title": "Builder Project",
+      "description": "A project created in the Constructor Lab.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 5000
+        },
+        "status": {
+          "type": "string",
+          "enum": ["IDEA", "IN_PROGRESS", "COMPLETED"]
+        },
+        "techStack": {
+          "type": "array",
+          "items": { "type": "string", "maxLength": 50 }
+        },
+        "impactMetric": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "authorId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "number"
+        },
+        "updatedAt": {
+          "type": "number"
+        }
+      },
+      "required": ["title", "description", "status", "authorId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Stores user profiles."
+    },
+    "users/{userId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Stores chat history for a user."
+    },
+    "users/{userId}/projects/{projectId}": {
+      "schema": "BuilderProject",
+      "description": "Stores builder projects for a user."
+    },
+    "materials/{materialId}": {
+      "schema": "CourseMaterial",
+      "description": "Stores course materials available globally."
+    }
+  }
+}
