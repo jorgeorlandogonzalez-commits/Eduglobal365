@@ -6,7 +6,11 @@ import { StorageService } from "./storageService";
 
 // Initialize the Gemini client.
 // In client-side SPA, VITE_GEMINI_API_KEY is available in import.meta.env
-const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || "AIzaSyAbj9VnVcVB-wWctv_5N6kf4j1CoDPxj1M";
+const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+if (!apiKey) {
+  console.warn("VITE_GEMINI_API_KEY no está configurada en las variables de entorno.");
+}
 const ai = new GoogleGenAI({ apiKey: apiKey });
 
 /**

@@ -5,6 +5,7 @@ import { CourseMaterial } from '../config/types';
 import { StorageService } from '../services/storageService';
 import { getModulesForSubject, NOTEBOOK_TOOLS } from '../config/constants';
 import { autoGenerateMaterial } from '../services/geminiService';
+import { TeacherAgent } from './TeacherAgent';
 
 const generateUUID = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -37,33 +38,8 @@ const TeacherPortal: React.FC<TeacherPortalProps> = ({ onReturn }) => {
   const availableModules = getModulesForSubject(subject, grade);
 
   // AI Content Generator States
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationIdea, setGenerationIdea] = useState('');
   const [generationSuccess, setGenerationSuccess] = useState<string | null>(null);
 
-  const handleAutoGenerate = async () => {
-    if (!moduleId) return;
-    setIsGenerating(true);
-    setGenerationSuccess(null);
-    
-    const selectedModule = availableModules.find(m => m.id === moduleId);
-    const moduleTitle = selectedModule ? selectedModule.title : 'Módulo General';
-
-    try {
-      const result = await autoGenerateMaterial(grade, subject, moduleTitle, toolId, generationIdea);
-      setTextContent(result.textContent);
-      setResourceUrl(result.resourceUrl);
-      setGenerationSuccess(`¡Éxito! Clase auto-generada y alineada con el DBA: ${result.dbaCode}`);
-      
-      // Auto-hide success message after 5 seconds
-      setTimeout(() => setGenerationSuccess(null), 5000);
-    } catch (error) {
-      console.error("Auto generation failed:", error);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-  
   // Auto-select first module when subject/grade changes
   useEffect(() => {
     if (availableModules.length > 0) {
@@ -293,58 +269,24 @@ const TeacherPortal: React.FC<TeacherPortalProps> = ({ onReturn }) => {
                         Agente AI: Creador de Contenidos MEN
                       </h3>
                       <p className="text-xs text-slate-600 dark:text-slate-400">
-                        Genera automáticamente la teoría, retos regionales y estructura de la clase basándose en el DBA oficial.
+                        Genera automáticamente la teoría, retos regionales y estructura de la clase o dialoga con el Agente AI Docente.
                       </p>
                     </div>
                   </div>
                   
                   <div className="space-y-4 mt-4">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-1">
-                        Contexto Regional o Enfoque Específico (Opcional)
-                      </label>
-                      <input 
-                        type="text"
-                        value={generationIdea}
-                        onChange={(e) => setGenerationIdea(e.target.value)}
-                        placeholder="Ej: Suma de fracciones usando recolección de café en el Eje Cafetero..."
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none cursor-text"
-                      />
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row gap-3 items-center">
-                      <button 
-                        type="button"
-                        onClick={handleAutoGenerate}
-                        disabled={isGenerating || !moduleId}
-                        className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-bold text-white transition-all ${
-                          isGenerating || !moduleId 
-                            ? 'bg-indigo-400 cursor-not-allowed' 
-                            : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-md hover:shadow-lg'
-                        }`}
-                      >
-                        {isGenerating ? (
-                          <>
-                            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Construyendo Módulo Educativo...
-                          </>
-                        ) : (
-                          <>
-                            <span>⚡</span> Generar Currículo con Agente AI
-                          </>
-                        )}
-                      </button>
-
-                      {generationSuccess && (
-                        <span className="text-[12px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-pulse">
-                          <span>✅</span> {generationSuccess}
-                        </span>
-                      )}
-                    </div>
+                    <TeacherAgent onApplyGeneratedContent={(content, url) => {
+                      setTextContent(content);
+                      setResourceUrl(url);
+                      setGenerationSuccess('¡Éxito! Contenido aplicado al borrador.');
+                      setTimeout(() => setGenerationSuccess(null), 5000);
+                    }} />
                   </div>
+                  {generationSuccess && (
+                    <div className="mt-3 text-[12px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-pulse">
+                      <span>✅</span> {generationSuccess}
+                    </div>
+                  )}
                 </div>
 
                 {textContent && (
