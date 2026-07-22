@@ -19,9 +19,9 @@ Para garantizar la viabilidad técnica y el despliegue rápido, con especial ate
 - **Decisión**: Construir la aplicación utilizando React 18+ y Vite sin un backend tradicional complejo.
 - **Razón**: Permite iteración rápida, despliegue estático económico y facilita la transición a una PWA (Progressive Web App) para verdaderas capacidades offline (Offline-First local execution roadmap).
 
-### ADR 2: Persistencia Local (Local Storage) y Exportación HTML Aislada
-- **Decisión**: Utilizar `localStorage` (`StorageService`) para guardar el estado del usuario, historial, materiales y proyectos. Además, implementar un exportador de paquetes HTML offline-friendly (`DownloadService`).
-- **Razón**: Elimina la fricción inicial de bases de datos de red, habilita la experiencia offline instantánea para zonas con intermitencia (vía descarga de archivos HTML interactivos auto-contenidos) y aísla la data de cada "Track" (estudiante vs. constructor).
+### ADR 2: Identidad y Persistencia Cloud (Firebase Auth & Firestore)
+- **Decisión**: Integrar Firebase Authentication para la gestión de identidades y Firestore para la persistencia de datos relacionales y perfiles de usuario (`users` collection).
+- **Razón**: Transición desde el MVP basado en `localStorage` hacia una arquitectura robusta de cuentas sincronizadas, permitiendo portabilidad del progreso del estudiante entre dispositivos, almacenamiento seguro del currículo generado por docentes y control de acceso basado en roles reales de base de datos.
 
 ### ADR 3: RAG (Retrieval-Augmented Generation) con Anclaje Curricular (DBA)
 - **Decisión**: El `geminiService` inyecta contexto de materiales curados por docentes junto con el código oficial de "Derecho Básico de Aprendizaje" (DBA) del MEN.
@@ -40,9 +40,10 @@ Para garantizar la viabilidad técnica y el despliegue rápido, con especial ate
 La aplicación sigue una arquitectura modular basada en componentes funcionales de React y servicios singleton:
 
 ### Capa de Presentación (UI Components)
-- `App.tsx` (Orquestador Dual): Maneja estado global y actúa como el "Controlador Frontal", despachando flujos basados en el rol del usuario (Student, Teacher, Builder), usando `crypto.randomUUID()` polifillado para gestión de IDs segura.
-- `CampusMap.tsx` & `LandingPage.tsx`: Puertas de entrada para navegación espacial; ahora soportan conmutación limpia de tracks.
-- `TeacherPortal.tsx`: Backoffice docente, enfocado en mapeo DBA de recursos (audio texto).
+- `AuthProvider.tsx`: Proveedor de contexto React que orquesta el ciclo de vida de la sesión (Firebase Auth) y sincroniza el perfil del usuario con Firestore.
+- `App.tsx` (Orquestador Dual): Maneja estado global y actúa como el "Controlador Frontal", despachando flujos basados en el rol del usuario (Student, Teacher, Builder).
+- `CampusMap.tsx` & `LandingPage.tsx`: Puertas de entrada para navegación espacial; integradas con autenticación.
+- `TeacherPortal.tsx` & `TeacherAgent.tsx`: Backoffice docente, ahora potenciado con un agente IA interactivo (TeacherAgent) capaz de dialogar y auto-generar e inyectar el material curricular estructurado.
 - `SubjectDashboard.tsx`: UI consumidora final para estudiantes. Oculta herramientas avanzadas/beta dinámicamente si no están activas en MVP (Audio-First pattern).
 - `ConstructorLab.tsx`: Panel focalizado en gestión CRUD (Local) de proyectos de infraestructura ("Build with Purpose" pattern); maneja métricas de impacto y estados (IDEACIÓN, PROGRESO, COMPLETADO).
 - `ChatBubble.tsx`: Presentación de la conversación AI. Renderizado polimórfico especializado interpretando *markdown extendido* privativo de la app (`[CODE_SNIPPET]`, `[QUIZ_FLASH]`, etc) condicionado por Track de lectura.
@@ -52,7 +53,8 @@ La aplicación sigue una arquitectura modular basada en componentes funcionales 
 - `storageService.ts`: Capa ORM / LocalStorage wrapper. Mantiene la separación Multi-Tenancy local usando propiedades `track` en los datos serializados.
 - `downloadService.ts`: Compilador nativo de exportaciones HTML (`Smart Packages`), con ramas polimórficas (exportación modo Estudiante "Para la Vereda" o modo Constructor "Package técnico").
 
-### Capa de Configuración y Dominio (`src/config/`)
+### Capa de Configuración y Dominio (`/config/`)
+- `firebase.ts`: Configuración singleton del SDK de Firebase, proveyendo acceso global a `auth` y `db` (Firestore).
 - `constants.ts`: "Cerebro Sistemático". Contiene el diccionario `DBA_CODES` hardcoded para validación offline ultra-rápida. Define el `SYSTEM_INSTRUCTIONS_V5` maestro.
 - `types.ts`: TS Enums y Typedefs fundacionales (`Message`, `CourseMaterial`, `BuilderProject`, `UserRole`, `SubjectModule`). Establece los contratos de invariabilidad del dominio.
 
@@ -77,8 +79,8 @@ El código actual está en posición de refactorización "Drop-In" para la Fase 
 ### Sustitución Capa LLM
 La función de `geminiService.ts` está desacoplada de la UI. La migración "True Offline" de Fase 2 permitirá intercambiar la llamada REST `GoogleGenAI` (Gemini API) por un motor en el navegador localizador de modelos cuantizados locales (ej. Gemma 2B via WebLLM/WebGPU), preservando 100% el mismo UI React.
 
-### Sustitución de Persistencia
-`storageService.ts` opera con contratos TS. Pasar de `localStorage` a `IndexedDB` local o una API de backend híbrida Cloud Firestore es trivial dado el aislamiento actual.
+### Consolidación de Persistencia (Cloud/Offline)
+Con la reciente migración a Firebase (Auth y Firestore), la arquitectura ha dado el paso fundamental hacia la sincronización Cloud multi-dispositivo y autenticación robusta. El siguiente paso natural es habilitar las capacidades de persistencia offline nativas de Firestore, consolidando la experiencia para usuarios en zonas de conectividad intermitente sin perder la confiabilidad del almacenamiento en la nube.
 
 ### PWA / Integración de Aulas Remotas
 La estructura actual de componentes funcionales puros facilita la integración con Service Workers (Cache Storage de Vite-PWA), fundamental para caching de audios pre-renderizados e indexación estructural.
