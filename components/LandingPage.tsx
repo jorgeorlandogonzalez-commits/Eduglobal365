@@ -30,7 +30,8 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const handleAction = async (action: () => void) => {
     if (!user) {
       await signIn();
-      if (user) action(); // wait, user state might not be updated immediately. The user will have to click again if it doesn't navigate.
+      // Si signIn fue exitoso, el auth.currentUser estará disponible inmediatamente.
+      action(); 
     } else {
       action();
     }
