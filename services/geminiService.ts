@@ -1,35 +1,7 @@
 // src/services/geminiService.ts
-import { GoogleGenAI, Content, Part } from "@google/genai";
 import { Message, Role, UserRole, CourseMaterial } from "../config/types";
 import { SYSTEM_INSTRUCTIONS_V5 } from "../config/constants";
 import { StorageService } from "./storageService";
-
-// ============================================================================
-// 🚀 LAZY INITIALIZATION (Inicialización Perezosa)
-// ============================================================================
-/**
- * Variable privada para mantener la instancia de la IA.
- * Se mantiene null hasta que se necesita por primera vez.
- */
-let aiInstance: GoogleGenAI | null = null;
-
-/**
- * Getter que garantiza que la IA solo se inicializa cuando se va a usar.
- * Previene errores de arranque si VITE_GEMINI_API_KEY falta temporalmente.
- */
-const getAIInstance = (): GoogleGenAI => {
-  if (!aiInstance) {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    
-    if (!apiKey) {
-      console.warn("⚠️ VITE_GEMINI_API_KEY no está configurada. Las llamadas a la nube usarán fallbacks locales o fallarán.");
-    }
-    
-    // ✅ La instancia se crea SOLO en este momento, no al importar el archivo
-    aiInstance = new GoogleGenAI({ apiKey: apiKey || "demo-key" });
-  }
-  return aiInstance;
-};
 
 // ============================================================================
 // 🛠️ GEMMA-4 LOCAL OFFLINE ENGINE SIMULATOR (MVP MOCK)
@@ -90,12 +62,10 @@ export const sendMessageToGemini = async (
   }
 
   try {
-    // ✅ 2. Aquí es donde ocurre la Lazy Initialization real
-    const ai = getAIInstance();
-
-    const contents: Content[] = chatHistory.map((msg) => ({
+    // We don't use ai = getAIInstance(); anymore, we call our backend
+    const contents = chatHistory.map((msg) => ({
       role: msg.role === 'model' ? 'model' : 'user',
-      parts: [{ text: msg.text } as Part],
+      parts: [{ text: msg.text }],
     }));
 
     let finalPrompt = newMessage;
@@ -115,21 +85,27 @@ export const sendMessageToGemini = async (
       }
     }
 
-    contents.push({ role: 'user', parts: [{ text: finalPrompt } as Part] });
+    contents.push({ role: 'user', parts: [{ text: finalPrompt }] });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: contents,
-      config: {
+    const response = await fetch('/api/gemini/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents,
         systemInstruction: dynamicSystemInstruction,
         temperature: 0.7,
         topK: 40,
         topP: 0.9,
-        maxOutputTokens: 350, // ✅ Control estricto para Micro-Learning
-      },
+        maxOutputTokens: 350,
+      })
     });
-
-    return response.text || sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.text || sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
   } catch (error) {
     console.error("Error calling Gemini API, falling back to local Gemma Engine:", error);
     // ✅ 4. Fallback robusto si la API falla (ej: cuota excedida o error de red)
@@ -160,16 +136,18 @@ Genera:
 Retorna únicamente un formato JSON válido con las claves: "dbaCode", "topic", "textContent", "resourceUrl". Sin markdown.
 `;
   try {
-    // ✅ 5. Lazy Initialization también aplicada aquí
-    const ai = getAIInstance();
-    
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: { temperature: 0.8, maxOutputTokens: 600, responseMimeType: "application/json" }
+    const response = await fetch('/api/gemini/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
     });
     
-    const text = response.text || "";
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const dataResponse = await response.json();
+    const text = dataResponse.text || "";
     const cleanText = text.replace(/```json/gi, "").replace(/```/gi, "").trim();
     const data = JSON.parse(cleanText);
     
