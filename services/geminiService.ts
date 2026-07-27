@@ -1,7 +1,7 @@
 // src/services/geminiService.ts
 import { Message, Role, UserRole, CourseMaterial } from "../config/types";
 import { SYSTEM_INSTRUCTIONS_V5 } from "../config/constants";
-import { StorageService } from "./storageService";
+import { FirestoreService } from "./firestoreService";
 
 // ============================================================================
 // 🛠️ GEMMA-4 LOCAL OFFLINE ENGINE SIMULATOR (MVP MOCK)
@@ -11,14 +11,14 @@ import { StorageService } from "./storageService";
  * En la Fase 2, se reemplazará por una llamada real a @mlc-ai/web-llm cargando 
  * un modelo cuantizado (ej. Gemma-2B-it-q4f16_1-MLC) para inferencia 100% local vía WebGPU.
  */
-export const sendMessageToGemmaOffline = (
+export const sendMessageToGemmaOffline = async (
   chatHistory: Message[],
   newMessage: string,
   subjectContext: string | null = null,
   userRole: UserRole = 'student'
-): string => {
+): Promise<string> => {
   const normSubject = subjectContext || "General";
-  const materials = StorageService.getCourseMaterials(normSubject);
+  const materials = await FirestoreService.getCourseMaterials(normSubject);
   const matchedMaterial = materials[0];
   const prefix = `[💡 GEMMA 4 LOCAL ENGINE - INFERENCIA CLIENT-SIDE WebGPU]`;
 
@@ -58,7 +58,7 @@ export const sendMessageToGemini = async (
 
   // 1. Verificación Offline inmediata
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    return sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
+    return await sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
   }
 
   try {
@@ -76,7 +76,7 @@ export const sendMessageToGemini = async (
     if (subjectContext) {
       finalPrompt = `[CONTEXTO: ESTOY EN EL SILO DE ${subjectContext.toUpperCase()}. ACTÚA SEGÚN ESE PROTOCOLO] ${newMessage}`;
       
-      const materials = StorageService.getCourseMaterials(subjectContext);
+      const materials = await FirestoreService.getCourseMaterials(subjectContext);
       if (materials.length > 0) {
         // ✅ 3. INYECCIÓN SOURCE-GROUNDED: Forzamos a la IA a usar el DBA y el contenido exacto
         const ragContext = materials.map(m => `TEMA: ${m.topic}\nDBA_CODE: ${m.dbaCode || 'N/A'}\nCONTENIDO CURADO:\n${m.textContent}`).join('\n\n');
@@ -105,11 +105,11 @@ export const sendMessageToGemini = async (
     }
     
     const data = await response.json();
-    return data.text || sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
+    return data.text || await sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
   } catch (error) {
     console.error("Error calling Gemini API, falling back to local Gemma Engine:", error);
     // ✅ 4. Fallback robusto si la API falla (ej: cuota excedida o error de red)
-    return sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
+    return await sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
   }
 };
 

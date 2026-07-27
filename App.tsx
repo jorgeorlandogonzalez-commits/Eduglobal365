@@ -6,6 +6,8 @@ import { getInitialUserMessage, APP_NAME, SIMULATION_TRIGGER_MESSAGE } from './c
 import { INTERACTION_POINTS } from './config/dbaSeedContent';
 import { sendMessageToGemini } from './services/geminiService';
 import { StorageService } from './services/storageService';
+import { FirestoreService } from './services/firestoreService';
+import { useAuth } from './components/AuthProvider';
 import { DownloadService } from './services/downloadService';
 import ChatBubble from './components/ChatBubble';
 import CampusMap from './components/CampusMap';
@@ -27,6 +29,7 @@ const generateUUID = () => {
 };
 
 const App: React.FC = () => {
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<AppView>(() => StorageService.loadAppState()?.currentView || 'LANDING');
   const [activeSubject, setActiveSubject] = useState<string | null>(() => StorageService.loadAppState()?.activeSubject || null);
   const [userRole, setUserRole] = useState<UserRole>(() => StorageService.loadAppState()?.userRole || 'student');
@@ -41,6 +44,7 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [materials, setMaterials] = useState<CourseMaterial[]>([]);
   const [dataSaverMode, setDataSaverMode] = useState(false);
   
   // Optimización para Ping-Pong Híbrido (evita re-renders masivos)
@@ -66,20 +70,61 @@ const App: React.FC = () => {
     return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
   }, []);
 
+
+  useEffect(() => {
+    let mounted = true;
+    const loadCloudData = async () => {
+      if (user) {
+        // Load app state
+        const cloudState = await FirestoreService.loadAppState();
+        if (cloudState && mounted) {
+          setCurrentView(cloudState.currentView);
+          setActiveSubject(cloudState.activeSubject);
+          if (cloudState.userRole) setUserRole(cloudState.userRole);
+          
+          // If there's an active subject, load the chat history
+          if (cloudState.activeSubject) {
+            const cloudChat = await FirestoreService.loadSubjectChat(cloudState.activeSubject, cloudState.userRole || 'student');
+            if (cloudChat.length > 0 && mounted) {
+              setMessages(cloudChat);
+            }
+          }
+        }
+      }
+    };
+    loadCloudData();
+    return () => { mounted = false; };
+  }, [user]);
+
+  useEffect(() => {
+    if (activeSubject) {
+      FirestoreService.getCourseMaterials(activeSubject, '11°').then(setMaterials);
+    }
+  }, [activeSubject]);
+
   useEffect(() => {
     if (isDarkMode) document.documentElement.classList.add('dark');
+
     else document.documentElement.classList.remove('dark');
   }, [isDarkMode]);
 
   useEffect(() => {
     StorageService.saveAppState(currentView, activeSubject, userRole);
-  }, [currentView, activeSubject, userRole]);
+    if (user) {
+      FirestoreService.saveAppState(currentView, activeSubject, userRole);
+    }
+  }, [currentView, activeSubject, userRole, user]);
 
   useEffect(() => {
     if (activeSubject && messages.length > 0) {
       StorageService.saveSubjectChat(activeSubject, messages, userRole);
+      if (user) {
+        // Save only the latest message to avoid rewriting the whole history every time
+        const latestMessage = messages[messages.length - 1];
+        FirestoreService.saveMessage(activeSubject, latestMessage, userRole);
+      }
     }
-  }, [messages, activeSubject, userRole]);
+  }, [messages, activeSubject, userRole, user]);
 
   useEffect(() => {
     if (currentView === 'CLASSROOM') messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -141,11 +186,11 @@ const App: React.FC = () => {
 
   const handleStartModuleTool = async (module: SubjectModule, tool: NotebookTool) => {
     setCurrentView('CLASSROOM');
-    const materials = StorageService.getCourseMaterials(activeSubject || undefined, student.grade);
+    // materials are now in state
     const material = materials.find(m => m.subject === activeSubject && m.moduleId === module.id && m.toolId === tool.id);
     setCurrentMaterial(material || null);
     
-    const subjectHistory = StorageService.loadSubjectChat(activeSubject || "General", userRole);
+    const subjectHistory = await FirestoreService.loadSubjectChat(activeSubject || "General", userRole);
     setMessages(subjectHistory);
 
     if (subjectHistory.length === 0) {
@@ -178,7 +223,7 @@ const App: React.FC = () => {
   }
   if (currentView === 'TEACHER_PORTAL') return <TeacherPortal onReturn={() => setCurrentView('LANDING')} />;
   if (currentView === 'CONSTRUCTOR_LAB') {
-    return <ConstructorLab onReturn={() => setCurrentView('LANDING')} onStartProject={(project) => { setActiveSubject(project.title); setCurrentView('CLASSROOM'); const history = StorageService.loadSubjectChat(project.title, 'builder'); setMessages(history); if (history.length === 0) handleSendMessage(`¡Hola Asistente! Voy a trabajar en el proyecto "${project.title}".`, true); }} />;
+    return <ConstructorLab onReturn={() => setCurrentView('LANDING')} onStartProject={(project) => { setActiveSubject(project.title); setCurrentView('CLASSROOM'); FirestoreService.loadSubjectChat(project.title, 'builder').then(history => { setMessages(history); if (history.length === 0) handleSendMessage(`¡Hola Asistente! Voy a trabajar en el proyecto "${project.title}".`, true); }); }} />;
   }
 
   return (

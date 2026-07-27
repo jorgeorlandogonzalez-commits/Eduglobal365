@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { BuilderProject, BuilderProfile } from '../config/types';
 import { StorageService } from '../services/storageService';
+import { FirestoreService } from '../services/firestoreService';
 import { getBuilderResources } from '../config/constants';
 
 const generateUUID = () => {
@@ -59,11 +60,11 @@ const ConstructorLab: React.FC<ConstructorLabProps> = ({ onStartProject, onRetur
       // Actualizar proyecto existente
       const updatedProjects = projects.map(p => p.id === editingProjectId ? project : p);
       setProjects(updatedProjects);
-      StorageService.saveBuilderProject(project); // Upsert: actualiza si existe
+      FirestoreService.saveBuilderProject(project);
       setEditingProjectId(null);
     } else {
       // Crear nuevo proyecto
-      StorageService.saveBuilderProject(project);
+      FirestoreService.saveBuilderProject(project);
       setProjects([...projects, project]);
     }
     
@@ -85,8 +86,8 @@ const ConstructorLab: React.FC<ConstructorLabProps> = ({ onStartProject, onRetur
     if (window.confirm('¿Estás seguro de eliminar este proyecto?')) {
       const updatedProjects = projects.filter(p => p.id !== projectId);
       setProjects(updatedProjects);
-      // Nota: StorageService no tiene método delete, pero podemos simularlo filtrando y guardando
-      const allProjects = StorageService.getBuilderProjects().filter(p => p.id !== projectId);
+      // TODO: Implement actual delete in FirestoreService. For now update local state
+      const allProjects = projects.filter(p => p.id !== projectId);
     try {
       localStorage.setItem('eduglobal_builder_projects', JSON.stringify(allProjects));
     } catch (e) {
@@ -97,7 +98,7 @@ const ConstructorLab: React.FC<ConstructorLabProps> = ({ onStartProject, onRetur
 
   // ✅ AGREGADO: Función para guardar cambios en el perfil (preventivo para Fase 2)
   const saveProfile = (updatedProfile: BuilderProfile) => {
-    StorageService.saveBuilderProfile(updatedProfile);
+    FirestoreService.saveBuilderProfile(updatedProfile);
     setProfile(updatedProfile);
   };
 

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { CourseMaterial } from '../config/types';
-import { StorageService } from '../services/storageService';
+import { FirestoreService } from '../services/firestoreService';
 import { getModulesForSubject, NOTEBOOK_TOOLS } from '../config/constants';
 import { autoGenerateMaterial } from '../services/geminiService';
 import { TeacherAgent } from './TeacherAgent';
@@ -52,7 +52,7 @@ const TeacherPortal: React.FC<TeacherPortalProps> = ({ onReturn }) => {
   }, []);
 
   const loadMaterials = () => {
-    setMaterials(StorageService.getCourseMaterials());
+    FirestoreService.getCourseMaterials().then(setMaterials);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -64,7 +64,7 @@ const TeacherPortal: React.FC<TeacherPortalProps> = ({ onReturn }) => {
     const topicName = selectedModule ? selectedModule.title : 'Módulo General';
 
     // Simulate network delay for upload
-    setTimeout(() => {
+    setTimeout(async () => {
       // ✅ CORREGIDO: CourseMaterial con todos los campos requeridos por types.ts
       const newMaterial: CourseMaterial = {
         id: generateUUID(),  // ✅ IDs únicos globales (no Date.now())
@@ -80,7 +80,7 @@ const TeacherPortal: React.FC<TeacherPortalProps> = ({ onReturn }) => {
         dbaCode: selectedModule?.dbaCode || `${subject.substring(0, 3).toUpperCase()}-GEN-DBA-01`  // ✅ CRÍTICO: Alineación MEN
       };
 
-      StorageService.saveCourseMaterial(newMaterial);
+      await FirestoreService.saveCourseMaterial(newMaterial);
       loadMaterials();
       
       // Reset form
@@ -92,7 +92,7 @@ const TeacherPortal: React.FC<TeacherPortalProps> = ({ onReturn }) => {
 
   const handleDelete = (id: string) => {
     if (window.confirm('¿Estás seguro de eliminar este material?')) {
-      StorageService.deleteCourseMaterial(id);
+      FirestoreService.deleteCourseMaterial(id);
       loadMaterials();
     }
   };
