@@ -30,14 +30,27 @@ const generateUUID = () => {
 
 const App: React.FC = () => {
   const { user } = useAuth();
-  const [currentView, setCurrentView] = useState<AppView>(() => StorageService.loadAppState()?.currentView || 'LANDING');
-  const [activeSubject, setActiveSubject] = useState<string | null>(() => StorageService.loadAppState()?.activeSubject || null);
-  const [userRole, setUserRole] = useState<UserRole>(() => StorageService.loadAppState()?.userRole || 'student');
+  const [currentView, setCurrentView] = useState<AppView>('LANDING');
+  const [isReady, setIsReady] = useState(false);
+  const [activeSubject, setActiveSubject] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>('student');
   
-  const [messages, setMessages] = useState<Message[]>(() => {
-    const saved = StorageService.loadAppState();
-    return StorageService.loadSubjectChat(saved?.activeSubject || null, saved?.userRole || 'student');
-  });
+  const [messages, setMessages] = useState<Message[]>([]);
+  
+  useEffect(() => {
+    async function loadState() {
+      const state = await StorageService.loadAppState();
+      if (state) {
+        setCurrentView(state.currentView);
+        setActiveSubject(state.activeSubject);
+        setUserRole(state.userRole);
+        const msgs = await StorageService.loadSubjectChat(state.activeSubject, state.userRole);
+        setMessages(msgs);
+      }
+      setIsReady(true);
+    }
+    loadState();
+  }, []);
 
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);

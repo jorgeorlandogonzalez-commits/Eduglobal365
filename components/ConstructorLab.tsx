@@ -40,7 +40,7 @@ const ConstructorLab: React.FC<ConstructorLabProps> = ({ onStartProject, onRetur
     setProjects(StorageService.getBuilderProjects());
   }, []);
 
-  const handleCreateProject = (e: React.FormEvent) => {
+  const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const project: BuilderProject = {

@@ -86,6 +86,36 @@ export interface StudentProfile {
   };
 }
 
+export type UserZPDLevel = 'basic' | 'intermediate' | 'advanced';
+
+export interface UserZPD {
+  level: UserZPDLevel;
+  consecutiveSuccesses: number;
+  consecutiveFailures: number;
+}
+
+export interface GamificationState {
+  points: number;
+  streak: number;
+  badges: string[];
+  lastActive: number;
+}
+
+export interface RegionConfig {
+  id: string;
+  name: string;
+  keywords: string[];
+  contextExample: string;
+}
+
+export interface SyncQueueItem {
+  id: string;
+  type: 'message' | 'progress' | 'profile' | 'project';
+  payload: any;
+  timestamp: number;
+  retryCount: number;
+}
+
 export interface SimulationState {
   isActive: boolean;
   currentQuestion: number;

@@ -3,6 +3,18 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { AuthProvider } from './components/AuthProvider';
+import { registerSW } from 'virtual:pwa-register';
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    if (confirm('Hay una nueva versión disponible. ¿Deseas recargar?')) {
+      updateSW(true);
+    }
+  },
+  onOfflineReady() {
+    console.log('La aplicación está lista para funcionar offline.');
+  },
+});
 
 class ErrorBoundary extends React.Component<{ children?: React.ReactNode }, { hasError: boolean, error: any, errorInfo: any }> {
   state = { hasError: false, error: null, errorInfo: null };

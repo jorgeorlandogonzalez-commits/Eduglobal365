@@ -1,7 +1,8 @@
 // src/services/geminiService.ts
 import { Message, Role, UserRole, CourseMaterial } from "../config/types";
-import { SYSTEM_INSTRUCTIONS_V5 } from "../config/constants";
+import { SYSTEM_INSTRUCTIONS_V5_1 } from "../config/constants";
 import { FirestoreService } from "./firestoreService";
+import { webLLMInstance } from "./webLLMService";
 
 // ============================================================================
 // 🛠️ GEMMA-4 LOCAL OFFLINE ENGINE SIMULATOR (MVP MOCK)
@@ -18,6 +19,15 @@ export const sendMessageToGemmaOffline = async (
   userRole: UserRole = 'student'
 ): Promise<string> => {
   const normSubject = subjectContext || "General";
+  
+  if (webLLMInstance.isReady()) {
+    try {
+      return await webLLMInstance.generate(chatHistory, newMessage, normSubject, userRole);
+    } catch (e) {
+      console.error("WebLLM offline error, falling back to static offline:", e);
+    }
+  }
+
   const materials = await FirestoreService.getCourseMaterials(normSubject);
   const matchedMaterial = materials[0];
   const prefix = `[💡 GEMMA 4 LOCAL ENGINE - INFERENCIA CLIENT-SIDE WebGPU]`;
@@ -69,7 +79,7 @@ export const sendMessageToGemini = async (
     }));
 
     let finalPrompt = newMessage;
-    let dynamicSystemInstruction = SYSTEM_INSTRUCTIONS_V5;
+    let dynamicSystemInstruction = SYSTEM_INSTRUCTIONS_V5_1;
     
     dynamicSystemInstruction += `\n\n<ROL_ACTUAL>\nEl usuario actual es un: ${activeRole}\n</ROL_ACTUAL>`;
 

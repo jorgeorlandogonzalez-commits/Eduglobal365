@@ -1,265 +1,164 @@
-// src/services/storageService.ts
-import { Message, AppView, CourseMaterial, BuilderProject, BuilderProfile, UserRole } from "../config/types";
-import { DBA_SEED_CONTENT, isSeedMaterial } from "../config/dbaSeedContent";
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { Message, StudentProfile, BuilderProject, BuilderProfile, AppView, UserRole, SyncQueueItem, CourseMaterial } from '../config/types';
 
-const KEYS = {
-  APP_STATE: "eduglobal_app_state",
-  COURSE_MATERIALS: "eduglobal_course_materials",
-  BUILDER_PROJECTS: "eduglobal_builder_projects",
-  BUILDER_PROFILE: "eduglobal_builder_profile",
-  USER_ROLE: "eduglobal_user_role",
-  // We no longer use a single CHAT_HISTORY key. 
-  // We will generate keys dynamically: "eduglobal_chat_{SubjectName}"
-};
-
-interface PersistedState {
-  currentView: AppView;
-  activeSubject: string | null;
-  userRole?: UserRole;
+interface EduGlobalDB extends DBSchema {
+  appState: {
+    key: string;
+    value: { currentView: AppView; activeSubject: string | null; userRole: UserRole };
+  };
+  messages: {
+    key: string;
+    value: { id: string; subject: string; role: UserRole; messages: Message[] };
+    indexes: { 'by-subject-role': string };
+  };
+  materials: {
+    key: string;
+    value: CourseMaterial;
+    indexes: { 'by-subject': string };
+  };
+  syncQueue: {
+    key: string;
+    value: SyncQueueItem;
+  };
+  studentProfile: {
+    key: string;
+    value: StudentProfile;
+  };
+  builderProfile: {
+    key: string;
+    value: BuilderProfile;
+  };
+  builderProjects: {
+    key: string;
+    value: BuilderProject;
+  };
 }
 
-// ============================================================================
-// 🔧 HELPERS INTERNOS
-// ============================================================================
+const DB_NAME = 'eduglobal365-db';
+const DB_VERSION = 1;
 
-/**
- * Obtiene SOLO los materiales subidos por docentes (sin semillas).
- * Este helper es CRÍTICO para evitar que las semillas se guarden en localStorage.
- * Las semillas deben existir solo en memoria (inyectadas desde dbaSeedContent.ts).
- */
-const getUserMaterialsOnly = (): CourseMaterial[] => {
-  try {
-    const stored = localStorage.getItem(KEYS.COURSE_MATERIALS);
-    const materials: CourseMaterial[] = stored ? JSON.parse(stored) : [];
-    // Filtrar semillas para no guardarlas en localStorage
-    return materials.filter(m => !isSeedMaterial(m));
-  } catch (error) {
-    console.error("Error loading user materials:", error);
-    return [];
+let dbPromise: Promise<IDBPDatabase<EduGlobalDB>> | null = null;
+
+async function getDB() {
+  if (!dbPromise) {
+    dbPromise = openDB<EduGlobalDB>(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        db.createObjectStore('appState');
+        
+        const messagesStore = db.createObjectStore('messages', { keyPath: 'id' });
+        messagesStore.createIndex('by-subject-role', 'subject'); // Simplification for indexing
+
+        const materialsStore = db.createObjectStore('materials', { keyPath: 'id' });
+        materialsStore.createIndex('by-subject', 'subject');
+
+        db.createObjectStore('syncQueue', { keyPath: 'id' });
+        db.createObjectStore('studentProfile');
+        db.createObjectStore('builderProfile');
+        db.createObjectStore('builderProjects', { keyPath: 'id' });
+      },
+    });
   }
-};
-
-// ============================================================================
-// 📦 STORAGE SERVICE
-// ============================================================================
+  return dbPromise;
+}
 
 export const StorageService = {
-  // --- STATE MANAGEMENT ---
-  // ✅ CORREGIDO: Default 'student' en lowercase para alineación con types.ts
-  saveAppState: (currentView: AppView, activeSubject: string | null, userRole: UserRole = 'student') => {
-    try {
-      const state: PersistedState = { currentView, activeSubject, userRole };
-      localStorage.setItem(KEYS.APP_STATE, JSON.stringify(state));
-    } catch (error) {
-      console.error("Error saving app state:", error);
-    }
+  // App State
+  async saveAppState(currentView: AppView, activeSubject: string | null, userRole: UserRole): Promise<void> {
+    const db = await getDB();
+    await db.put('appState', { currentView, activeSubject, userRole }, 'currentState');
   },
 
-  loadAppState: (): PersistedState | null => {
-    try {
-      const stored = localStorage.getItem(KEYS.APP_STATE);
-      return stored ? JSON.parse(stored) : null;
-    } catch (error) {
-      console.error("Error loading app state:", error);
-      return null;
-    }
+  async loadAppState(): Promise<{ currentView: AppView; activeSubject: string | null; userRole: UserRole } | null> {
+    const db = await getDB();
+    const state = await db.get('appState', 'currentState');
+    return state || null;
   },
 
-  // --- SILO-BASED CHAT HISTORY MANAGEMENT ---
-  
-  // Helper to generate a safe key for each subject
-  getSubjectKey: (subject: string) => `eduglobal_chat_${subject.replace(/\s+/g, '_')}`,
-
-  // ✅ CORREGIDO: Agregado parámetro track opcional para Dual-Track isolation
-  saveSubjectChat: (subject: string, messages: Message[], track?: UserRole) => {
+  // Messages
+  async saveSubjectChat(subject: string | null, messages: Message[], role: UserRole): Promise<void> {
     if (!subject) return;
-    try {
-      // Limit per subject to prevent quota issues
-      const recentMessages = messages.slice(-50); 
-      // Filtrar por track si se proporciona (Dual-Track isolation)
-      const filteredMessages = track 
-        ? recentMessages.filter(m => !m.track || m.track === track)
-        : recentMessages;
-      const key = StorageService.getSubjectKey(subject);
-      localStorage.setItem(key, JSON.stringify(filteredMessages));
-    } catch (error) {
-      console.error(`Error saving chat for ${subject}:`, error);
-    }
+    const db = await getDB();
+    const id = `\${role}_\${subject}`;
+    await db.put('messages', { id, subject, role, messages });
   },
 
-  // ✅ CORREGIDO: Agregado parámetro track + timestamp como number (no Date)
-  loadSubjectChat: (subject: string | null, track?: UserRole): Message[] => {
+  async loadSubjectChat(subject: string | null, role: UserRole): Promise<Message[]> {
     if (!subject) return [];
-    try {
-      const key = StorageService.getSubjectKey(subject);
-      const stored = localStorage.getItem(key);
-      if (!stored) return [];
-      
-      const parsed = JSON.parse(stored);
-      // ✅ CORREGIDO: timestamp ya es number, NO convertir a Date
-      // Filtrar por track si se proporciona (Dual-Track isolation)
-      const messages = parsed.map((msg: any) => ({
-        ...msg
-        // timestamp permanece como number (portable para localStorage)
-      }));
-      
-      return track 
-        ? messages.filter((m: Message) => !m.track || m.track === track)
-        : messages;
-    } catch (error) {
-      console.error(`Error loading chat for ${subject}:`, error);
-      return [];
-    }
+    const db = await getDB();
+    const id = `\${role}_\${subject}`;
+    const data = await db.get('messages', id);
+    return data ? data.messages : [];
   },
 
-  // --- TEACHER PORTAL MANAGEMENT ---
+  async clearChat(subject: string | null, role: UserRole): Promise<void> {
+    if (!subject) return;
+    const db = await getDB();
+    const id = `\${role}_\${subject}`;
+    await db.delete('messages', id);
+  },
+
+  // Student Profile
+  async saveStudentProfile(profile: StudentProfile): Promise<void> {
+    const db = await getDB();
+    await db.put('studentProfile', profile, 'currentProfile');
+  },
+
+  async getStudentProfile(): Promise<StudentProfile | null> {
+    const db = await getDB();
+    return await db.get('studentProfile', 'currentProfile') || null;
+  },
+
+  // Builder Profile
+  async saveBuilderProfile(profile: BuilderProfile): Promise<void> {
+    const db = await getDB();
+    await db.put('builderProfile', profile, 'currentBuilder');
+  },
+
+  async loadBuilderProfile(): Promise<BuilderProfile | null> {
+    const db = await getDB();
+    return await db.get('builderProfile', 'currentBuilder') || null;
+  },
+
+  // Builder Projects
+  async saveBuilderProject(project: BuilderProject): Promise<void> {
+    const db = await getDB();
+    await db.put('builderProjects', project);
+  },
+
+  async getBuilderProjects(): Promise<BuilderProject[]> {
+    const db = await getDB();
+    return await db.getAll('builderProjects');
+  },
+
+  async deleteBuilderProject(projectId: string): Promise<void> {
+    const db = await getDB();
+    await db.delete('builderProjects', projectId);
+  },
+
+  // Sync Queue
+  async addToSyncQueue(item: Omit<SyncQueueItem, 'id' | 'retryCount' | 'timestamp'>): Promise<void> {
+    const db = await getDB();
+    const fullItem: SyncQueueItem = {
+      ...item,
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+      retryCount: 0
+    };
+    await db.put('syncQueue', fullItem);
+  },
+
+  async getSyncQueue(): Promise<SyncQueueItem[]> {
+    const db = await getDB();
+    return await db.getAll('syncQueue');
+  },
   
-  /**
-   * Guarda un material subido por docente.
-   * ✅ CORREGIDO: Solo guarda materiales del usuario, NO semillas.
-   * Las semillas se inyectan en memoria desde getCourseMaterials().
-   */
-  saveCourseMaterial: (material: CourseMaterial) => {
-    try {
-      // ✅ CRÍTICO: Usar getUserMaterialsOnly() para evitar guardar semillas
-      const existing = getUserMaterialsOnly();
-      existing.push(material);
-      localStorage.setItem(KEYS.COURSE_MATERIALS, JSON.stringify(existing));
-      return true;
-    } catch (error) {
-      console.error("Error saving course material:", error);
-      return false;
-    }
+  async removeFromSyncQueue(id: string): Promise<void> {
+    const db = await getDB();
+    await db.delete('syncQueue', id);
   },
 
-  /**
-   * Obtiene materiales educativos combinando:
-   * 1. Materiales subidos por docentes (localStorage)
-   * 2. Semillas pre-curadas (memoria, desde dbaSeedContent.ts)
-   * 
-   * Las semillas solo se inyectan si no existe un material con el mismo dbaCode.
-   * Esto permite que los docentes sobrescriban las semillas con contenido personalizado.
-   * 
-   * @param subject - (Opcional) Filtrar por nombre de materia
-   * @param grade - (Opcional) Filtrar por grado escolar (ej: "11°")
-   * @returns Array de CourseMaterial combinado
-   */
-  getCourseMaterials: (subject?: string, grade?: string): CourseMaterial[] => {
-    try {
-      // ✅ CRÍTICO: Obtener SOLO materiales del usuario (sin semillas)
-      const userMaterials = getUserMaterialsOnly();
-      
-      // Combinar materiales del usuario con semillas
-      const combined = [...userMaterials];
-      
-      DBA_SEED_CONTENT.forEach(seed => {
-        // ✅ NUEVO: Filtrar por grado si se proporciona
-        if (grade && seed.grade !== grade) return;
-        
-        // Solo inyectar semilla si no existe material con mismo dbaCode
-        const indexByDba = combined.findIndex(m => m && m.dbaCode === seed.dbaCode);
-        if (indexByDba === -1) {
-          combined.push(seed);
-        }
-      });
-
-      if (subject) {
-        // Normalize for standard subject comparison
-        const normSubject = subject.toLowerCase().trim();
-        return combined.filter(m => {
-          const mSubject = m.subject.toLowerCase().trim();
-          // Match exactly, or check substring (e.g. Inglés vs Idioma Extranjero/Inglés)
-          return mSubject === normSubject || 
-                 mSubject.includes(normSubject) || 
-                 normSubject.includes(mSubject);
-        });
-      }
-      return combined;
-    } catch (error) {
-      console.error("Error loading course materials:", error);
-      return [];
-    }
-  },
-
-  /**
-   * Elimina un material subido por docente.
-   * ✅ CORREGIDO: Solo elimina de materiales del usuario, NO afecta semillas.
-   * Las semillas siempre estarán disponibles como fallback.
-   */
-  deleteCourseMaterial: (id: string) => {
-    try {
-      // ✅ CRÍTICO: Usar getUserMaterialsOnly() para evitar guardar semillas
-      const existing = getUserMaterialsOnly();
-      const filtered = existing.filter(m => m.id !== id);
-      localStorage.setItem(KEYS.COURSE_MATERIALS, JSON.stringify(filtered));
-      return true;
-    } catch (error) {
-      console.error("Error deleting course material:", error);
-      return false;
-    }
-  },
-
-  // --- BUILDER TRACK MANAGEMENT ---
-  saveBuilderProject: (project: BuilderProject) => {
-    try {
-      const existing = StorageService.getBuilderProjects();
-      const index = existing.findIndex(p => p.id === project.id);
-      if (index >= 0) {
-        existing[index] = project;
-      } else {
-        existing.push(project);
-      }
-      localStorage.setItem(KEYS.BUILDER_PROJECTS, JSON.stringify(existing));
-      return true;
-    } catch (error) {
-      console.error("Error saving builder project:", error);
-      return false;
-    }
-  },
-
-  getBuilderProjects: (): BuilderProject[] => {
-    try {
-      const stored = localStorage.getItem(KEYS.BUILDER_PROJECTS);
-      return stored ? JSON.parse(stored) : [];
-    } catch (error) {
-      console.error("Error loading builder projects:", error);
-      return [];
-    }
-  },
-
-  // ✅ NUEVO: Método para obtener proyectos vinculados a un módulo del Track Estudiante (Cross-Track Synergy)
-  getBuilderProjectsBySubject: (subjectId: string): BuilderProject[] => {
-    try {
-      const projects = StorageService.getBuilderProjects();
-      return projects.filter(p => p.linkedSubjectId === subjectId);
-    } catch (error) {
-      console.error("Error loading builder projects by subject:", error);
-      return [];
-    }
-  },
-
-  saveBuilderProfile: (profile: BuilderProfile) => {
-    try {
-      localStorage.setItem(KEYS.BUILDER_PROFILE, JSON.stringify(profile));
-      return true;
-    } catch (error) {
-      console.error("Error saving builder profile:", error);
-      return false;
-    }
-  },
-
-  loadBuilderProfile: (): BuilderProfile | null => {
-    try {
-      const stored = localStorage.getItem(KEYS.BUILDER_PROFILE);
-      return stored ? JSON.parse(stored) : null;
-    } catch (error) {
-      console.error("Error loading builder profile:", error);
-      return null;
-    }
-  },
-
-  // --- UTILS ---
-  clearAllData: () => {
-    localStorage.clear(); // Nuclear option for debugging
+  async clearSyncQueue(): Promise<void> {
+    const db = await getDB();
+    await db.clear('syncQueue');
   }
 };
