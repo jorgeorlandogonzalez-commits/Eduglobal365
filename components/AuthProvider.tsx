@@ -24,25 +24,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         // Ensure user document exists
         try {
-          const userDoc = await getDocFromServer(doc(db, 'users', currentUser.uid));
-          if (!userDoc.exists()) {
-             await setDoc(doc(db, 'users', currentUser.uid), {
-               email: currentUser.email,
-               name: currentUser.displayName || 'Estudiante',
-               role: 'student', // default
-               createdAt: serverTimestamp(),
-               updatedAt: serverTimestamp(),
-               grade: '11°',
-               location: 'Local',
-               level: 1,
-               points: 0,
-               streak: 0
-             });
+          if (db) {
+            const userDoc = await getDocFromServer(doc(db, 'users', currentUser.uid));
+            if (!userDoc.exists()) { 
+               await setDoc(doc(db, 'users', currentUser.uid), {
+                 email: currentUser.email,
+                 name: currentUser.displayName || 'Estudiante',
+                 role: 'student', // default
+                 createdAt: serverTimestamp(),
+                 updatedAt: serverTimestamp(),
+                 grade: '11°',
+                 location: 'Local',
+                 level: 1,
+                 points: 0,
+                 streak: 0
+               });
+            }
           }
         } catch (e) {
           console.error("Error creating user profile", e);
@@ -52,11 +58,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setLoading(false);
     });
-
     return () => unsubscribe();
   }, []);
 
   const signIn = async () => {
+    if (!auth) return;
     try {
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
@@ -66,6 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logOut = async () => {
+    if (!auth) return;
     try {
       await signOut(auth);
     } catch (error) {

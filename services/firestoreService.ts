@@ -3,13 +3,13 @@ import { db, auth } from '../config/firebase';
 import { Message, AppView, CourseMaterial, BuilderProject, BuilderProfile, UserRole } from '../config/types';
 import { DBA_SEED_CONTENT, isSeedMaterial } from '../config/dbaSeedContent';
 
-const getUserId = () => auth.currentUser?.uid;
+const getUserId = () => auth?.currentUser?.uid;
 
 export const FirestoreService = {
   // --- STATE MANAGEMENT ---
   saveAppState: async (currentView: AppView, activeSubject: string | null, userRole: UserRole = 'student') => {
     const userId = getUserId();
-    if (!userId) return;
+    if (!userId || !db) return;
     try {
       await setDoc(doc(db, 'users', userId, 'state', 'appState'), {
         currentView,
@@ -24,7 +24,7 @@ export const FirestoreService = {
 
   loadAppState: async (): Promise<{ currentView: AppView, activeSubject: string | null, userRole?: UserRole } | null> => {
     const userId = getUserId();
-    if (!userId) return null;
+    if (!userId || !db) return null;
     try {
       const docSnap = await getDoc(doc(db, 'users', userId, 'state', 'appState'));
       if (docSnap.exists()) {
@@ -40,7 +40,7 @@ export const FirestoreService = {
   // --- CHAT MANAGEMENT ---
   saveMessage: async (subject: string, message: Message, track?: UserRole) => {
     const userId = getUserId();
-    if (!userId || !subject) return;
+    if (!userId || !subject || !db) return;
     try {
       const messageId = message.id || Date.now().toString();
       await setDoc(doc(db, 'users', userId, 'messages', messageId), {
@@ -56,7 +56,7 @@ export const FirestoreService = {
 
   loadSubjectChat: async (subject: string | null, track?: UserRole): Promise<Message[]> => {
     const userId = getUserId();
-    if (!userId || !subject) return [];
+    if (!userId || !subject || !db) return [];
     try {
       const q = query(
         collection(db, 'users', userId, 'messages'),
@@ -74,6 +74,7 @@ export const FirestoreService = {
 
   // --- TEACHER PORTAL (MATERIALS) ---
   saveCourseMaterial: async (material: CourseMaterial) => {
+    if (!db) return false;
     try {
       const materialId = material.id || Date.now().toString();
       await setDoc(doc(db, 'materials', materialId), {
@@ -91,13 +92,16 @@ export const FirestoreService = {
 
   getCourseMaterials: async (subject?: string, grade?: string): Promise<CourseMaterial[]> => {
     try {
-      const materialsRef = collection(db, 'materials');
-      let q = query(materialsRef);
-      if (grade) {
-        q = query(materialsRef, where('grade', '==', grade));
+      let dbMaterials: CourseMaterial[] = [];
+      if (db) {
+        const materialsRef = collection(db, 'materials');
+        let q = query(materialsRef);
+        if (grade) {
+          q = query(materialsRef, where('grade', '==', grade));
+        }
+        const snapshot = await getDocs(q);
+        dbMaterials = snapshot.docs.map(doc => doc.data() as CourseMaterial);
       }
-      const snapshot = await getDocs(q);
-      const dbMaterials = snapshot.docs.map(doc => doc.data() as CourseMaterial);
       
       const combined = [...dbMaterials];
       DBA_SEED_CONTENT.forEach(seed => {
@@ -123,6 +127,7 @@ export const FirestoreService = {
   },
 
   deleteCourseMaterial: async (id: string) => {
+    if (!db) return false;
     try {
       await deleteDoc(doc(db, 'materials', id));
       return true;
@@ -135,7 +140,7 @@ export const FirestoreService = {
   // --- BUILDER TRACK MANAGEMENT ---
   saveBuilderProject: async (project: BuilderProject) => {
     const userId = getUserId();
-    if (!userId) return false;
+    if (!userId || !db) return false;
     try {
       const projectId = project.id || Date.now().toString();
       await setDoc(doc(db, 'users', userId, 'projects', projectId), {
@@ -153,7 +158,7 @@ export const FirestoreService = {
 
   getBuilderProjects: async (): Promise<BuilderProject[]> => {
     const userId = getUserId();
-    if (!userId) return [];
+    if (!userId || !db) return [];
     try {
       const snapshot = await getDocs(collection(db, 'users', userId, 'projects'));
       return snapshot.docs.map(doc => doc.data() as BuilderProject);
@@ -165,7 +170,7 @@ export const FirestoreService = {
 
   getBuilderProjectsBySubject: async (subjectId: string): Promise<BuilderProject[]> => {
     const userId = getUserId();
-    if (!userId) return [];
+    if (!userId || !db) return [];
     try {
       const q = query(collection(db, 'users', userId, 'projects'), where('linkedSubjectId', '==', subjectId));
       const snapshot = await getDocs(q);
@@ -178,7 +183,7 @@ export const FirestoreService = {
 
   saveBuilderProfile: async (profile: BuilderProfile) => {
     const userId = getUserId();
-    if (!userId) return false;
+    if (!userId || !db) return false;
     try {
       await setDoc(doc(db, 'users', userId, 'profile', 'builder'), profile, { merge: true });
       return true;
@@ -190,7 +195,7 @@ export const FirestoreService = {
 
   loadBuilderProfile: async (): Promise<BuilderProfile | null> => {
     const userId = getUserId();
-    if (!userId) return null;
+    if (!userId || !db) return null;
     try {
       const docSnap = await getDoc(doc(db, 'users', userId, 'profile', 'builder'));
       if (docSnap.exists()) {

@@ -1,19 +1,21 @@
-// src/config/firebase.ts
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+const isFirebaseConfigured = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "";
 
-export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
+export const auth = isFirebaseConfigured ? getAuth(app) : null;
+export const db = isFirebaseConfigured ? getFirestore(app, (firebaseConfig as any).firestoreDatabaseId) : null;
 
 // Activar persistencia offline (PWA)
-enableIndexedDbPersistence(db).catch((err) => {
-  if (err.code == 'failed-precondition') {
-    console.warn('Persistencia falló: Múltiples pestañas abiertas.');
-  } else if (err.code == 'unimplemented') {
-    console.warn('El navegador no soporta persistencia offline.');
-  }
-});
+if (db) {
+  enableIndexedDbPersistence(db as any).catch((err) => {
+    if (err.code == 'failed-precondition') {
+      console.warn('Persistencia falló: Múltiples pestañas abiertas.');
+    } else if (err.code == 'unimplemented') {
+      console.warn('El navegador no soporta persistencia offline.');
+    }
+  });
+}
