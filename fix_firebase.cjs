@@ -1,4 +1,6 @@
-// src/config/firebase.ts
+const fs = require('fs');
+
+const content = `// src/config/firebase.ts
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -125,7 +127,7 @@ export const FirebaseSyncService = {
     const queue = await StorageService.getSyncQueue();
     if (queue.length === 0) return { success: 0, failed: 0 };
 
-    console.log(`🔄 Procesando ${queue.length} items de sincronización...`);
+    console.log(\`🔄 Procesando \${queue.length} items de sincronización...\`);
     let success = 0;
     let failed = 0;
 
@@ -135,7 +137,7 @@ export const FirebaseSyncService = {
         await StorageService.removeFromSyncQueue(item.id);
         success++;
       } catch (error) {
-        console.error(`❌ Error sincronizando item ${item.id}:`, error);
+        console.error(\`❌ Error sincronizando item \${item.id}:\`, error);
         failed++;
         // Si falla más de 3 veces, eliminar para no bloquear la cola
         if (item.retryCount >= 3) {
@@ -144,7 +146,7 @@ export const FirebaseSyncService = {
       }
     }
 
-    console.log(`✅ Sincronización completada: ${success} éxitos, ${failed} fallos`);
+    console.log(\`✅ Sincronización completada: \${success} éxitos, \${failed} fallos\`);
     return { success, failed };
   },
 
@@ -185,7 +187,7 @@ export const FirebaseSyncService = {
         break;
 
       default:
-        throw new Error(`Tipo de sync no soportado: ${item.type}`);
+        throw new Error(\`Tipo de sync no soportado: \${item.type}\`);
     }
   },
 
@@ -394,7 +396,7 @@ export const FirebaseReportingService = {
 // ============================================================================
 
 const generateSyncId = (): string => {
-  return `sync_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return \`sync_\${Date.now()}_\${Math.random().toString(36).substr(2, 9)}\`;
 };
 
 // ============================================================================
@@ -417,3 +419,7 @@ export const FirebaseService = {
 };
 
 export default FirebaseService;
+`;
+
+fs.writeFileSync('config/firebase.ts', content);
+console.log('Done config/firebase.ts');

@@ -1,9 +1,9 @@
-// src/main.tsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 import { AuthProvider } from './components/AuthProvider';
+import { startAutoSync } from './config/firebase';
 
 // Registro del Service Worker para PWA (Offline-First)
 if ('serviceWorker' in navigator) {
@@ -21,3 +21,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </AuthProvider>
   </React.StrictMode>
 );
+
+startAutoSync();

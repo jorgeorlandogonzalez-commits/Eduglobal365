@@ -1,4 +1,5 @@
-// src/App.tsx
+const fs = require('fs');
+const content = `// src/App.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -235,7 +236,7 @@ const App: React.FC = () => {
     if (messages.length > 0) {
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.role === Role.MODEL) {
-        const questionMatch = lastMsg.text.match(/Pregunta\s+(\d+)\s*(?:de|\/)\s*5/i);
+        const questionMatch = lastMsg.text.match(/Pregunta\\s+(\\d+)\\s*(?:de|\\/)\\s*5/i);
         
         if (questionMatch) {
           setSimulationState({
@@ -250,7 +251,7 @@ const App: React.FC = () => {
         }
 
         // Parse Score from AI Response
-        const scoreMatch = lastMsg.text.match(/\[\[SCORE:\s*(\d+)\/5\]\]/);
+        const scoreMatch = lastMsg.text.match(/\\[\\[SCORE:\\s*(\\d+)\\/5\\]\\]/);
         if (scoreMatch) {
             const correctAnswers = parseInt(scoreMatch[1]);
             const scorePercentage = (correctAnswers / 5) * 100;
@@ -297,7 +298,7 @@ const App: React.FC = () => {
                 setCurrentAchievement({
                    id: generateUUID(),
                    title: '¡Racha de Genio!',
-                   description: `Completaste ${subjectKey} con excelencia.`,
+                   description: \`Completaste \${subjectKey} con excelencia.\`,
                    points: correctAnswers * 50,
                    icon: '🔥'
                 });
@@ -305,7 +306,7 @@ const App: React.FC = () => {
                 setCurrentAchievement({
                    id: generateUUID(),
                    title: '¡Módulo Superado!',
-                   description: `Has completado el reto de ${subjectKey}.`,
+                   description: \`Has completado el reto de \${subjectKey}.\`,
                    points: correctAnswers * 50,
                    icon: '🏆'
                 });
@@ -317,7 +318,7 @@ const App: React.FC = () => {
                 setCurrentAchievement({
                    id: generateUUID(),
                    title: '¡Buena respuesta!',
-                   description: `Continúa así, sumando puntos.`,
+                   description: \`Continúa así, sumando puntos.\`,
                    points: 10,
                    icon: '✨'
                 });
@@ -502,7 +503,7 @@ const App: React.FC = () => {
     
     // 🆕 async load for IndexedDB
     StorageService.loadSubjectChat(activeSubject || "General", userRole).then(history => {
-      printWindow.document.write(`
+      printWindow.document.write(\`
         <html>
           <head>
             <title>Guía de Estudio - Eduglobal365</title>
@@ -516,19 +517,19 @@ const App: React.FC = () => {
             </style>
           </head>
           <body>
-            <h1>Guía de Estudio Offline - ${activeSubject || 'General'}</h1>
-            <p><strong>Estudiante:</strong> ${student.name} | <strong>Grado:</strong> ${student.grade}</p>
+            <h1>Guía de Estudio Offline - \${activeSubject || 'General'}</h1>
+            <p><strong>Estudiante:</strong> \${student.name} | <strong>Grado:</strong> \${student.grade}</p>
             <p><em>Generado por Eduglobal365 - Modo Offline</em></p>
             <br/>
-            ${history.length > 0 ? history.map(m => `
-              <div class="message ${m.role}">
-                <div class="role">${m.role === 'user' ? 'Estudiante' : 'Tutor Edú'}</div>
-                <div>${m.text.replace(/\n/g, '<br/>')}</div>
+            \${history.length > 0 ? history.map(m => \`
+              <div class="message \${m.role}">
+                <div class="role">\${m.role === 'user' ? 'Estudiante' : 'Tutor Edú'}</div>
+                <div>\${m.text.replace(/\\n/g, '<br/>')}</div>
               </div>
-            `).join('') : '<p>No hay historial de conversación en este módulo aún.</p>'}
+            \`).join('') : '<p>No hay historial de conversación en este módulo aún.</p>'}
           </body>
         </html>
-      `);
+      \`);
       printWindow.document.close();
       setTimeout(() => {
         printWindow.print();
@@ -560,8 +561,8 @@ const App: React.FC = () => {
     setIsSidebarOpen(false);
     
     const toolMessage = tool === "Recursos Regionales" 
-        ? `Solicito recurso del sistema: ${tool}. (Contexto actual: ${subjectContext}, Región del estudiante: ${student.location})`
-        : `Solicito recurso del sistema: ${tool}. (Contexto actual: ${subjectContext})`;
+        ? \`Solicito recurso del sistema: \${tool}. (Contexto actual: \${subjectContext}, Región del estudiante: \${student.location})\`
+        : \`Solicito recurso del sistema: \${tool}. (Contexto actual: \${subjectContext})\`;
     await handleSendMessage(toolMessage);
   };
 
@@ -614,7 +615,7 @@ const App: React.FC = () => {
     if (subjectHistory.length === 0) {
         setIsLoading(true);
         
-        const entryText = `¡Hola Edú! Voy a estudiar el módulo "${module.title}" usando la herramienta: ${tool.label}. ¿Empezamos?`;
+        const entryText = \`¡Hola Edú! Voy a estudiar el módulo "\${module.title}" usando la herramienta: \${tool.label}. ¿Empezamos?\`;
         
         const initialUserMsg: Message = { 
           id: generateUUID(), 
@@ -642,7 +643,7 @@ const App: React.FC = () => {
           setIsLoading(false);
         }
     } else {
-        const entryText = `[SISTEMA] El estudiante ha seleccionado el módulo "${module.title}" y la herramienta "${tool.label}". Guíalo en este formato.`;
+        const entryText = \`[SISTEMA] El estudiante ha seleccionado el módulo "\${module.title}" y la herramienta "\${tool.label}". Guíalo en este formato.\`;
         await handleSendMessage(entryText, true);
     }
   };
@@ -744,7 +745,7 @@ const App: React.FC = () => {
           setCurrentAchievement({
              id: generateUUID(),
              title: '¡Canje Exitoso!',
-             description: `Has adquirido: ${itemName}.`,
+             description: \`Has adquirido: \${itemName}.\`,
              points: 0,
              icon: '🎁'
           });
@@ -764,7 +765,7 @@ const App: React.FC = () => {
           StorageService.loadSubjectChat(project.title, 'builder').then(history => {
             setMessages(history);
             if (history.length === 0) {
-              const entryText = `¡Hola Asistente! Voy a trabajar en el proyecto "${project.title}". Mi métrica de impacto es: ${project.impactMetric}. ¿Por dónde empezamos?`;
+              const entryText = \`¡Hola Asistente! Voy a trabajar en el proyecto "\${project.title}". Mi métrica de impacto es: \${project.impactMetric}. ¿Por dónde empezamos?\`;
               handleSendMessage(entryText, true);
             }
           });
@@ -791,7 +792,7 @@ const App: React.FC = () => {
           <div>
             <h1 className="font-bold text-lg text-slate-800 dark:text-slate-100 leading-none">{APP_NAME}</h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-               {currentView === 'CAMPUS' ? 'Campus Virtual' : `Módulo: ${activeSubject || 'General'}`}
+               {currentView === 'CAMPUS' ? 'Campus Virtual' : \`Módulo: \${activeSubject || 'General'}\`}
             </p>
           </div>
         </div>
@@ -802,7 +803,7 @@ const App: React.FC = () => {
             <div className="flex gap-2">
               <button 
                 onClick={() => setDataSaverMode(!dataSaverMode)}
-                className={`hidden md:flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors border ${dataSaverMode ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200'}`}
+                className={\`hidden md:flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors border \${dataSaverMode ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200'}\`}
                 title="Modo Ahorro de Datos (Desactiva animaciones y prefiere audio)"
               >
                 <span>{dataSaverMode ? '🔋 Ahorro Activo' : '⚡ Normal'}</span>
@@ -843,32 +844,32 @@ const App: React.FC = () => {
           <button
             onClick={handleActivateGemmaLocal}
             disabled={gemmaModelDownloading}
-            className={`
+            className={\`
               hidden md:flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all duration-300
-              ${gemmaModelDownloading 
+              \${gemmaModelDownloading 
                 ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-300 animate-pulse'
                 : gemmaReady 
                   ? 'bg-purple-600 text-white border-purple-700 shadow-sm' 
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:border-purple-400 hover:text-purple-600'}
-            `}
+            \`}
             title={gemmaReady ? "Operando en Gemma Local (Inferencia local activa)" : "Activar Inferencia Offline con Gemma 2B"}
           >
             <span className="text-[11px]">🤖</span>
             {gemmaModelDownloading 
-              ? `Descargando Gemma... ${gemmaProgress}%` 
+              ? \`Descargando Gemma... \${gemmaProgress}%\` 
               : gemmaReady 
                 ? "Gemma Local Activo" 
                 : "Activar Gemma Local"
             }
           </button>
 
-          <div className={`
+          <div className={\`
              hidden md:flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-colors duration-300
-             ${(isOnline && !forceGemmaLocal)
+             \${(isOnline && !forceGemmaLocal)
                ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800' 
                : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'}
-          `}>
-             <span className={`w-2 h-2 rounded-full ${(isOnline && !forceGemmaLocal) ? 'bg-blue-500' : 'bg-green-500 animate-pulse'}`}></span>
+          \`}>
+             <span className={\`w-2 h-2 rounded-full \${(isOnline && !forceGemmaLocal) ? 'bg-blue-500' : 'bg-green-500 animate-pulse'}\`}></span>
              {(isOnline && !forceGemmaLocal) ? 'Sincronizado' : 'Inferencia Local Activa (Offline)'}
           </div>
           
@@ -903,11 +904,11 @@ const App: React.FC = () => {
       <div className="flex flex-1 overflow-hidden relative">
         
         {/* Sidebar */}
-        <aside className={`
+        <aside className={\`
           absolute md:static top-0 left-0 h-full w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-20 transform transition-transform duration-300 ease-in-out
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          \${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
           overflow-y-auto
-        `}>
+        \`}>
           <div className="p-4 border-b border-slate-100 dark:border-slate-700">
              <div className="flex items-center gap-3 mb-2">
                <div className="h-10 w-10 rounded-full bg-yellow-400 flex items-center justify-center font-bold text-yellow-800">
@@ -964,11 +965,11 @@ const App: React.FC = () => {
                            <div className="flex items-center gap-1.5">
                                <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                     <div 
-                                        className={`h-full rounded-full ${score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`} 
-                                        style={{ width: `${score}%` }}
+                                        className={\`h-full rounded-full \${score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-yellow-500' : 'bg-red-500'}\`} 
+                                        style={{ width: \`\${score}%\` }}
                                     ></div>
                                </div>
-                               <span className={`font-bold w-6 text-right ${score >= 80 ? 'text-green-600 dark:text-green-400' : score >= 60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}`}>
+                               <span className={\`font-bold w-6 text-right \${score >= 80 ? 'text-green-600 dark:text-green-400' : score >= 60 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400'}\`}>
                                  {score}
                                </span>
                            </div>
@@ -996,7 +997,7 @@ const App: React.FC = () => {
           <nav className="p-4 space-y-2">
             <button 
                 onClick={handleReturnToCampus}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left font-medium ${currentView === 'CAMPUS' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
+                className={\`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left font-medium \${currentView === 'CAMPUS' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}\`}
             >
                 <span className="text-lg">🗺️</span> Mapa del Campus
             </button>
@@ -1104,7 +1105,7 @@ const App: React.FC = () => {
                         <div className="w-24 bg-slate-700 rounded-full h-2">
                             <div 
                                 className="bg-blue-500 h-2 rounded-full transition-all duration-500" 
-                                style={{ width: `${(simulationState.currentQuestion / simulationState.totalQuestions) * 100}%` }}
+                                style={{ width: \`\${(simulationState.currentQuestion / simulationState.totalQuestions) * 100}%\` }}
                             ></div>
                         </div>
                     </div>
@@ -1161,7 +1162,7 @@ const App: React.FC = () => {
                               if (points) {
                                 const matchedPoint = points.find(p => p.timestamp === currentTime);
                                 if (matchedPoint) {
-                                  const uniqueKey = `${dbaCode}_${currentTime}`;
+                                  const uniqueKey = \`\${dbaCode}_\${currentTime}\`;
                                   if (!hasTriggeredPoint[uniqueKey]) {
                                     setHasTriggeredPoint(prev => ({ ...prev, [uniqueKey]: true }));
                                     
@@ -1237,7 +1238,7 @@ const App: React.FC = () => {
                             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(inputText)}
                             placeholder={
                                 isOnline 
-                                ? (simulationState.isActive ? "Responde A, B, C o D..." : `Pregunta algo al experto en ${activeSubject}...`)
+                                ? (simulationState.isActive ? "Responde A, B, C o D..." : \`Pregunta algo al experto en \${activeSubject}...\`)
                                 : "Modo Offline: Escribe tu pregunta..."
                             }
                             maxLength={500}
@@ -1247,12 +1248,12 @@ const App: React.FC = () => {
                         <button
                             onClick={() => handleSendMessage(inputText)}
                             disabled={isLoading || !inputText.trim() || inputText.length > 500}
-                            className={`
+                            className={\`
                             p-3 rounded-full flex items-center justify-center transition-all shadow-md
-                            ${isLoading || !inputText.trim() || inputText.length > 500
+                            \${isLoading || !inputText.trim() || inputText.length > 500
                                 ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed' 
                                 : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 active:scale-95'}
-                            `}
+                            \`}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
@@ -1265,8 +1266,8 @@ const App: React.FC = () => {
                 </div>
                 <div className="max-w-3xl mx-auto mt-2 flex justify-center gap-4 text-[10px] uppercase tracking-widest font-semibold">
                     <button onClick={handleReturnToCampus} className="text-slate-400 hover:text-blue-600 transition-colors">⬅ Volver al Campus</button>
-                    <span className={`flex items-center gap-1 ${isOnline ? 'text-blue-600' : 'text-green-600'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-blue-600' : 'bg-green-600'}`}></span>
+                    <span className={\`flex items-center gap-1 \${isOnline ? 'text-blue-600' : 'text-green-600'}\`}>
+                        <span className={\`w-1.5 h-1.5 rounded-full \${isOnline ? 'bg-blue-600' : 'bg-green-600'}\`}></span>
                         {isOnline ? 'Cloud Sync On' : 'Datos Locales Seguros'}
                     </span>
                 </div>
@@ -1294,3 +1295,5 @@ const App: React.FC = () => {
 };
 
 export default App;
+`;
+fs.writeFileSync('App.tsx', content);
