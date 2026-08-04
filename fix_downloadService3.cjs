@@ -1,8 +1,9 @@
-// src/services/downloadService.ts
+const fs = require('fs');
+const content = `// src/services/downloadService.ts
 import { Message, UserRole, BuilderProject, CourseMaterial, StudentProfile } from "../config/types";
 import { APP_NAME } from "../config/constants";
 import { StorageService } from "./storageService";
-import { REGIONS, getRegionContext } from "../config/regions";
+import { COLOMBIA_REGIONS } from "../config/regions";
 
 export interface OfflinePackage {
   metadata: {
@@ -53,12 +54,12 @@ export const DownloadService = {
 
       const isBuilder = track === 'builder';
       
-      let content = `<!DOCTYPE html>
+      let content = \`<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${APP_NAME} | Paquete Offline: ${subject}</title>
+    <title>\${APP_NAME} | Paquete Offline: \${subject}</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f8fafc; }
         .header { background: #1e293b; color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
@@ -79,34 +80,34 @@ export const DownloadService = {
 </head>
 <body>
     <div class="header">
-        <h1>📚 ${subject}</h1>
+        <h1>📚 \${subject}</h1>
         <p>Preparado para la Vereda (100% Offline)</p>
-        ${isBuilder ? '<span class="badge">Track Constructor</span>' : '<span class="badge">Track Estudiante</span>'}
+        \${isBuilder ? '<span class="badge">Track Constructor</span>' : '<span class="badge">Track Estudiante</span>'}
     </div>
 
-    ${isBuilder && project ? `
+    \${isBuilder && project ? \`
     <div class="metadata">
         <h2>🏗️ Detalles del Proyecto</h2>
-        <p><strong>Descripción:</strong> ${project.description}</p>
-        <p><strong>Impacto:</strong> ${project.impactMetric}</p>
-        <p><strong>Stack:</strong> ${project.techStack.join(', ')}</p>
+        <p><strong>Descripción:</strong> \${project.description}</p>
+        <p><strong>Impacto:</strong> \${project.impactMetric}</p>
+        <p><strong>Stack:</strong> \${project.techStack.join(', ')}</p>
     </div>
-    ` : ''}
+    \` : ''}
 
     <div class="messages-container">
-        ${relevantMessages.length > 0 
-            ? relevantMessages.map(m => `
-                <div class="message ${m.role === 'user' ? 'user' : 'bot'}">
-                    <div class="role">${m.role === 'user' ? 'Tú' : 'Tutor Edú'}</div>
-                    <div class="content">${m.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+        \${relevantMessages.length > 0 
+            ? relevantMessages.map(m => \`
+                <div class="message \${m.role === 'user' ? 'user' : 'bot'}">
+                    <div class="role">\${m.role === 'user' ? 'Tú' : 'Tutor Edú'}</div>
+                    <div class="content">\${m.text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
                 </div>
-            `).join('')
+            \`).join('')
             : '<div class="message"><div class="content">No hay mensajes en este módulo todavía.</div></div>'
         }
     </div>
     
     <div class="footer">
-        ${isBuilder 
+        \${isBuilder 
           ? 'Generado por Eduglobal365 | Track Constructor - Metodología "Build with Purpose"<br>Este paquete incluye tu proyecto, documentación técnica y recursos para trabajar offline.'
           : 'Generado por tecnología SAS BIC - Educación para todos.<br>Puedes abrir este archivo en cualquier navegador sin conexión a internet.'
         }
@@ -114,7 +115,7 @@ export const DownloadService = {
 
     <script>
       if ('serviceWorker' in navigator) {
-        const swCode = `
+        const swCode = \`
           const CACHE_NAME = 'eduglobal-offline-pkg-v1';
           self.addEventListener('install', (e) => {
             self.skipWaiting();
@@ -126,7 +127,7 @@ export const DownloadService = {
               })
             );
           });
-        `;
+        \`;
         const blob = new Blob([swCode], {type: 'application/javascript'});
         const swUrl = URL.createObjectURL(blob);
         navigator.serviceWorker.register(swUrl).then(() => {
@@ -137,7 +138,7 @@ export const DownloadService = {
       }
     </script>
 </body>
-</html>`;
+</html>\`;
 
       const blob = new Blob([content], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
@@ -145,10 +146,10 @@ export const DownloadService = {
       const link = document.createElement('a');
       link.href = url;
       
-      const safeSubject = subject.replace(/\s+/g, '_').replace(/[^\w\-]/g, '');
+      const safeSubject = subject.replace(/\\s+/g, '_').replace(/[^\\w\\-]/g, '');
       link.download = isBuilder 
-        ? `Eduglobal_Constructor_${safeSubject}.html` 
-        : `Eduglobal_Estudiante_${safeSubject}_Offline.html`;
+        ? \`Eduglobal_Constructor_\${safeSubject}.html\` 
+        : \`Eduglobal_Estudiante_\${safeSubject}_Offline.html\`;
       
       document.body.appendChild(link);
       link.click();
@@ -172,7 +173,7 @@ export const DownloadService = {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return false;
     
-    printWindow.document.write(`
+    printWindow.document.write(\`
       <html>
         <head>
           <title>Guía de Estudio - Eduglobal365</title>
@@ -186,18 +187,18 @@ export const DownloadService = {
           </style>
         </head>
         <body>
-          <h1>Guía de Estudio Offline - ${subject}</h1>
+          <h1>Guía de Estudio Offline - \${subject}</h1>
           <p><em>Generado por Eduglobal365 - Formato PDF</em></p>
           <br/>
-          ${messages.length > 0 ? messages.map(m => `
-            <div class="message ${m.role}">
-              <div class="role">${m.role === 'user' ? 'Estudiante' : 'Tutor Edú'}</div>
-              <div>${m.text.replace(/\n/g, '<br/>')}</div>
+          \${messages.length > 0 ? messages.map(m => \`
+            <div class="message \${m.role}">
+              <div class="role">\${m.role === 'user' ? 'Estudiante' : 'Tutor Edú'}</div>
+              <div>\${m.text.replace(/\\n/g, '<br/>')}</div>
             </div>
-          `).join('') : '<p>No hay historial de conversación en este módulo aún.</p>'}
+          \`).join('') : '<p>No hay historial de conversación en este módulo aún.</p>'}
         </body>
       </html>
-    `);
+    \`);
     printWindow.document.close();
     setTimeout(() => {
       printWindow.print();
@@ -211,7 +212,7 @@ export const DownloadService = {
    */
   generateJSONBackup: async (subject: string, track: UserRole = 'student') => {
     try {
-      console.log(`✅ Generando paquete offline JSON para: ${subject}...`);
+      console.log(\`✅ Generando paquete offline JSON para: \${subject}...\`);
 
       const studentProfile = await StorageService.getStudentProfile();
       const allMaterials = await StorageService.getCourseMaterials(subject);
@@ -236,9 +237,9 @@ export const DownloadService = {
         if (match) dbaCodesSet.add(match[0]); 
       });
       
-      const regionId = studentProfile?.region || 'urbano';
-      const regionConfig = getRegionContext(regionId) || REGIONS.find(r => r.id === 'urbano');
-      const regionalExamples = regionConfig?.contextExample ? [regionConfig.contextExample] : [];
+      const regionId = studentProfile?.region || 'bogota';
+      const regionConfig = COLOMBIA_REGIONS[regionId] || COLOMBIA_REGIONS['bogota'];
+      const regionalExamples = regionConfig?.examples ? regionConfig.examples.slice(0, 5) : [];
 
       const jsonString = JSON.stringify({
         messages: educationalMessages,
@@ -282,10 +283,10 @@ export const DownloadService = {
       const blob = new Blob([packageJSON], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       
-      const sanitizedSubject = subject.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-      const sanitizedName = (studentProfile?.name || "estudiante").replace(/\s+/g, '_');
+      const sanitizedSubject = subject.replace(/\\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      const sanitizedName = (studentProfile?.name || "estudiante").replace(/\\s+/g, '_');
       const dateStr = new Date().toISOString().split('T')[0];
-      const filename = `eduglobal365_${sanitizedSubject}_${dateStr}_${sanitizedName}.json`;
+      const filename = \`eduglobal365_\${sanitizedSubject}_\${dateStr}_\${sanitizedName}.json\`;
 
       const link = document.createElement("a");
       link.href = url;
@@ -319,7 +320,7 @@ export const DownloadService = {
    */
   importOfflinePackage: async (file: File): Promise<boolean> => {
     try {
-      console.log(`✅ Importando paquete offline: ${file.name}...`);
+      console.log(\`✅ Importando paquete offline: \${file.name}...\`);
 
       const text = await file.text();
       const packageData: OfflinePackage = JSON.parse(text);
@@ -406,25 +407,24 @@ export const DownloadService = {
     const materials = await StorageService.getCourseMaterials(subject);
     const profile = await StorageService.getStudentProfile();
     
-    const regionConfig = profile?.region ? getRegionContext(profile.region) : null;
-    const region = regionConfig?.name || 'Colombia';
+    const region = profile?.region ? COLOMBIA_REGIONS[profile.region]?.name : 'Colombia';
     
-    let guide = `========================================\n`;
-    guide += `  EDUGLOBAL365 - GUÍA DE ESTUDIO OFFLINE\n`;
-    guide += `  Asignatura: ${subject}\n`;
-    guide += `  Región: ${region}\n`;
-    guide += `  Fecha: ${new Date().toLocaleDateString('es-CO')}\n`;
-    guide += `========================================\n\n`;
+    let guide = \`========================================\\n\`;
+    guide += \`  EDUGLOBAL365 - GUÍA DE ESTUDIO OFFLINE\\n\`;
+    guide += \`  Asignatura: \${subject}\\n\`;
+    guide += \`  Región: \${region}\\n\`;
+    guide += \`  Fecha: \${new Date().toLocaleDateString('es-CO')}\\n\`;
+    guide += \`========================================\\n\\n\`;
     
-    guide += `--- CONTENIDO CURADO ---\n\n`;
+    guide += \`--- CONTENIDO CURADO ---\\n\\n\`;
     
     materials.forEach((m, i) => {
-      guide += `[${i + 1}] ${m.topic}\n`;
-      guide += `DBA: ${m.dbaCode}\n`;
-      guide += `${m.textContent.substring(0, 500)}...\n\n`;
+      guide += \`[\${i + 1}] \${m.topic}\\n\`;
+      guide += \`DBA: \${m.dbaCode}\\n\`;
+      guide += \`\${m.textContent.substring(0, 500)}...\\n\\n\`;
     });
     
-    guide += `--- RETOS Y PREGUNTAS ---\n\n`;
+    guide += \`--- RETOS Y PREGUNTAS ---\\n\\n\`;
     
     const challenges = messages.filter(m => 
       m.role === 'model' && (
@@ -434,18 +434,18 @@ export const DownloadService = {
     );
     
     challenges.forEach((c, i) => {
-      guide += `Reto ${i + 1}:\n${c.text.replace(/\[RETO_VEREDA\]|\[QUIZ_FLASH\]/g, '').trim()}\n\n`;
+      guide += \`Reto \${i + 1}:\\n\${c.text.replace(/\\[RETO_VEREDA\\]|\\[QUIZ_FLASH\\]/g, '').trim()}\\n\\n\`;
     });
     
-    guide += `--- CIERRE OFFLINE ---\n`;
-    guide += `Recuerda: El proceso es más importante que la respuesta final.\n`;
-    guide += `¡Vamos con toda!\n`;
+    guide += \`--- CIERRE OFFLINE ---\\n\`;
+    guide += \`Recuerda: El proceso es más importante que la respuesta final.\\n\`;
+    guide += \`¡Vamos con toda!\\n\`;
     
     const blob = new Blob([guide], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `guia_${subject.replace(/\s+/g, '_')}.txt`;
+    link.download = \`guia_\${subject.replace(/\\s+/g, '_')}.txt\`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -473,7 +473,7 @@ export const DownloadService = {
         }
       }
       
-      console.log(`✅ Limpieza completada: ${cleaned} mensajes antiguos eliminados`);
+      console.log(\`✅ Limpieza completada: \${cleaned} mensajes antiguos eliminados\`);
       return cleaned;
     } catch (error) {
       console.error("Error en limpieza:", error);
@@ -481,3 +481,5 @@ export const DownloadService = {
     }
   }
 };
+`
+fs.writeFileSync('services/downloadService.ts', content);
