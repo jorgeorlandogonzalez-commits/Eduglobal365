@@ -104,6 +104,34 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({ message, onOptionSelect }) => {
     // 4. Detect Reto Vereda (Track Estudiante)
     const hasRetoVereda = mainContent.includes('[RETO_VEREDA]');
     mainContent = mainContent.replace(/\[RETO_VEREDA\]/gi, '').trim();
+    
+    const hasRetoConstructor = mainContent.includes('[RETO_CONSTRUCTOR]');
+    mainContent = mainContent.replace(/\[RETO_CONSTRUCTOR\]/gi, '').trim();
+
+    const hasExportaJson = mainContent.includes('[EXPORTA_JSON]');
+    mainContent = mainContent.replace(/\[EXPORTA_JSON\]/gi, '').trim();
+
+    const hasInstalaPWA = mainContent.includes('[INSTALA_PWA]');
+    mainContent = mainContent.replace(/\[INSTALA_PWA\]/gi, '').trim();
+
+    const hasActivaWebLLM = mainContent.includes('[ACTIVA_WEBLLM]');
+    mainContent = mainContent.replace(/\[ACTIVA_WEBLLM\]/gi, '').trim();
+
+    const hasSincronizaNube = mainContent.includes('[SINCRONIZA_NUBE]');
+    mainContent = mainContent.replace(/\[SINCRONIZA_NUBE\]/gi, '').trim();
+
+    const hasAdoptaModulo = mainContent.includes('[ADOPTA_MODULO]');
+    mainContent = mainContent.replace(/\[ADOPTA_MODULO\]/gi, '').trim();
+
+    const hasAlertaBienestar = mainContent.includes('[ALERTA_BIENESTAR]');
+    mainContent = mainContent.replace(/\[ALERTA_BIENESTAR\]/gi, '').trim();
+
+    const hasDescargaOffline = mainContent.includes('[DESCARGA_OFFLINE]');
+    mainContent = mainContent.replace(/\[DESCARGA_OFFLINE\]/gi, '').trim();
+
+    const hasLimpiaCache = mainContent.includes('[LIMPIA_CACHE]');
+    mainContent = mainContent.replace(/\[LIMPIA_CACHE\]/gi, '').trim();
+
 
     // ✅ 5. Detect Code Snippet (Track Constructor - NUEVO v3.0)
     const hasCodeSnippet = mainContent.includes('[CODE_SNIPPET]');

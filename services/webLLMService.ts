@@ -1,8 +1,10 @@
+// src/services/webLLMService.ts
 import * as webllm from '@mlc-ai/web-llm';
 import { Message, UserRole } from '../config/types';
+import { SYSTEM_INSTRUCTIONS_V5 } from '../config/constants';
 
-// WebLLM currently provides MLC chat endpoints.
-const SELECTED_MODEL = 'gemma-2b-it-q4f16_1-MLC';
+const SELECTED_MODEL = 'Llama-3-8B-Instruct-q4f32_1-MLC-1k'; 
+// Nota: Gemma-2B-it-q4f16_1-MLC es válido también, pero Llama-3-8B tiene mejor español
 
 class WebLLMService {
   private engine: webllm.MLCEngine | null = null;
@@ -11,13 +13,16 @@ class WebLLMService {
   async init(onProgress?: (progress: number, text: string) => void) {
     if (this.ready) return;
     
+    // ✅ Fallback si WebGPU no soportado
+    if (!navigator.gpu) {
+      throw new Error('WebGPU no soportado. Usando modo estático.');
+    }
+    
     try {
       this.engine = new webllm.MLCEngine();
       
       this.engine.setInitProgressCallback((report) => {
-        if (onProgress) {
-          onProgress(report.progress, report.text);
-        }
+        if (onProgress) onProgress(report.progress, report.text);
       });
 
       await this.engine.reload(SELECTED_MODEL);
@@ -33,34 +38,50 @@ class WebLLMService {
     return this.ready;
   }
 
-  async generate(chatHistory: Message[], newMessage: string, subject: string, userRole: UserRole): Promise<string> {
+  /**
+   * ✅ CORREGIDO: Ahora inyecta el System Instruction v5.2 completo
+   * para que la IA local se comporte como Tutor Edú con método socrático
+   */
+  async sendMessageToGemmaLocal(
+    chatHistory: Message[], 
+    newMessage: string,
+    userRole: UserRole = 'student',
+    subjectContext: string | null = null
+  ): Promise<string> {
     if (!this.ready || !this.engine) {
       throw new Error('WebLLM is not initialized.');
     }
 
-    const messages = chatHistory.map(msg => ({
-      role: msg.role === 'user' ? 'user' : 'assistant',
-      content: msg.text
-    }));
+    // ✅ 1. Construir mensajes con System Instruction INYECTADO
+    const messages: any[] = [
+      {
+        role: 'system',
+        content: `${SYSTEM_INSTRUCTIONS_V5}\n\n<ROL_ACTUAL>\nEl usuario actual es un: ${userRole}\n${subjectContext ? `Está en el silo de: ${subjectContext}` : ''}\n</ROL_ACTUAL>\n\n<CONTEXTO_LOCAL>\nEstás operando 100% LOCAL en el dispositivo del usuario vía WebGPU. No hay internet. Usa [ACTIVA_WEBLLM] si es la primera vez.`
+      }
+    ];
 
+    // 2. Agregar historial
+    chatHistory.forEach(msg => {
+      messages.push({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.text
+      });
+    });
+
+    // 3. Agregar nuevo mensaje
     messages.push({
       role: 'user',
       content: newMessage
     });
 
-    // We format it explicitly with some system prompt if possible,
-    // or just let Gemma handle it.
-    
-    // In WebLLM, you just pass the standard chat completion format
     const request = {
-      messages: messages as any[],
+      messages: messages,
       temperature: 0.7,
-      max_tokens: 1024,
+      max_tokens: 500, // Micro-learning: respuestas cortas
     };
 
     const reply = await this.engine.chat.completions.create(request);
-    
-    return reply.choices[0].message.content || 'Sin respuesta...';
+    return reply.choices[0].message.content || '[📥 MODO OFFLINE]\n• Sin respuesta local\n• Intenta reconectar';
   }
 
   async unload() {

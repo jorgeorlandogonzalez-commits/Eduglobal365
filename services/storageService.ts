@@ -135,6 +135,40 @@ export const StorageService = {
     await db.delete('builderProjects', projectId);
   },
 
+  // Materials
+  async saveCourseMaterial(material: CourseMaterial): Promise<void> {
+    const db = await getDB();
+    await db.put('materials', material);
+  },
+
+  async getCourseMaterials(subject?: string, grade?: string): Promise<CourseMaterial[]> {
+    const db = await getDB();
+    let materials = await db.getAll('materials');
+
+    if (grade) {
+      materials = materials.filter(m => m.grade === grade);
+    }
+    if (subject) {
+      const normSubject = subject.toLowerCase().trim();
+      materials = materials.filter(m => {
+        const mSubject = m.subject.toLowerCase().trim();
+        return mSubject === normSubject || mSubject.includes(normSubject) || normSubject.includes(mSubject);
+      });
+    }
+    return materials;
+  },
+
+  async getUserMaterialsOnly(subject?: string, grade?: string): Promise<CourseMaterial[]> {
+    const materials = await this.getCourseMaterials(subject, grade);
+    // Assuming seed materials have an id starting with 'seed-'
+    return materials.filter(m => !m.id.startsWith('seed-'));
+  },
+
+  async deleteCourseMaterial(id: string): Promise<void> {
+    const db = await getDB();
+    await db.delete('materials', id);
+  },
+
   // Sync Queue
   async addToSyncQueue(item: Omit<SyncQueueItem, 'id' | 'retryCount' | 'timestamp'>): Promise<void> {
     const db = await getDB();

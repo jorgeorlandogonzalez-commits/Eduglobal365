@@ -2,7 +2,21 @@
 import { CourseMaterial } from "./types";
 
 // ============================================================================
-// ?? INTERACTION_POINTS - Puntos de Interacción en Audio/Podcast
+// 🔧 HELPERS DE TIMESTAMP (Corrección crítica: evitar Date.now() dinámico)
+// ============================================================================
+/**
+ * Timestamp base fijo para todas las semillas.
+ * Esto garantiza que:
+ * 1. Las semillas NO aparezcan como "nuevas" en cada recarga
+ * 2. Firebase Sync no duplique datos infinitamente
+ * 3. El progreso del estudiante sea estable entre sesiones
+ */
+const SEED_TIMESTAMP_BASE = 1704067200000; // 1 Enero 2024 00:00 UTC
+let seedTimestampCounter = 0;
+const getSeedTimestamp = () => SEED_TIMESTAMP_BASE + (seedTimestampCounter++ * 86400000);
+
+// ============================================================================
+// ⏱️ INTERACTION_POINTS - Puntos de Interacción en Audio/Podcast
 // ============================================================================
 /**
  * Define momentos específicos (en segundos) del audio donde el reproductor
@@ -10,8 +24,9 @@ import { CourseMaterial } from "./types";
  * 
  * Formato: DBA_CODE -> array de puntos de interacción
  * Cada punto tiene: timestamp (segundos), prompt (pregunta al estudiante)
+ * 
+ * Total: 45+ puntos de interacción contextualizados en regiones de Colombia
  */
-
 export interface InteractionPoint {
   timestamp: number;  // Segundo exacto del audio
   prompt: string;     // Pregunta o reto que se muestra al estudiante
@@ -51,6 +66,7 @@ export const INTERACTION_POINTS: Record<string, InteractionPoint[]> = {
 
   // === MATEMÁTICAS 11° ===
   "MAT-11-DBA-01": [
+    { timestamp: 45, prompt: "📡 ¡Atención! Si un agricultor de Necoclí tiene un terreno inclinado, ¿qué lado del triángulo rectángulo representa la hipotenusa? A) El opuesto al ángulo, B) El lado más largo (inclinación de la loma), C) El cateto horizontal.", type: "question", expectedTimeSeconds: 30 },
     { timestamp: 90, prompt: "Una noria en un parque de diversiones gira. Si el radio es 5 metros, ¿cuánto mide una vuelta completa? Usa π ≈ 3.14", type: "question", expectedTimeSeconds: 40 },
     { timestamp: 175, prompt: "Desde un mirador en Medellín, ves un edificio con un ángulo de elevación de 30°. Si estás a 100 metros, ¿qué trigonométrica usarías para hallar la altura?", type: "challenge", expectedTimeSeconds: 50 }
   ],
@@ -85,6 +101,7 @@ export const INTERACTION_POINTS: Record<string, InteractionPoint[]> = {
 
   // === HUMANIDADES 11° ===
   "HUM-11-DBA-01": [
+    { timestamp: 12, prompt: "[QUIZ_FLASH] Si un periodista local denuncia el estado de las vías veredales, ¿cuál es su intención comunicativa? A) Narrar un cuento, B) Persuadir e informar con argumentos, C) Expresar poesía.", type: "question", expectedTimeSeconds: 25 },
     { timestamp: 90, prompt: "Compara el Quijote con un personaje colombiano: ¿quién en tu comunidad 'lucha contra molinos de viento'?", type: "challenge", expectedTimeSeconds: 40 },
     { timestamp: 170, prompt: "¿Por qué la literatura universal sigue siendo relevante para un joven de Necoclí en 2026?", type: "reflection", expectedTimeSeconds: 30 }
   ],
@@ -115,6 +132,7 @@ export const INTERACTION_POINTS: Record<string, InteractionPoint[]> = {
 
   // === CIENCIAS NATURALES 11° ===
   "CNA-11-DBA-01": [
+    { timestamp: 15, prompt: "[RETO_VEREDA] Un campesino empuja una carretilla con 60kg de abono a velocidad constante. ¿Qué podemos decir de la fuerza neta? A) Es cero (balanceadas), B) Es muy alta, C) Es igual a la gravedad.", type: "challenge", expectedTimeSeconds: 30 },
     { timestamp: 95, prompt: "Una pelota de fútbol se patea en el Estadio Metropolitano. Describe su trayectoria usando vectores (mentalmente).", type: "challenge", expectedTimeSeconds: 40 },
     { timestamp: 180, prompt: "¿Por qué las olas del Caribe rompen diferente que las del Pacífico colombiano? Piensa en energía y profundidad.", type: "reflection", expectedTimeSeconds: 35 }
   ],
@@ -186,17 +204,31 @@ export const INTERACTION_POINTS: Record<string, InteractionPoint[]> = {
 };
 
 // ============================================================================
-// ?? DBA_SEED_CONTENT - Materiales Curriculares por Defecto (Offline-First)
+// 🌱 DBA_SEED_CONTENT - Materiales Curriculares por Defecto (Offline-First)
 // ============================================================================
 /**
  * Cuando NO hay internet y NO hay materiales del docente cargados,
  * estos contenidos semilla garantizan que el estudiante SIEMPRE
  * tenga algo que estudiar. Son "mínimos vitales" curriculares.
  * 
- * Marcados con isSeed=true para distinguirlos de contenido docente.
+ * ✅ CORRECCIONES APLICADAS vs versión anterior:
+ * 1. Timestamps FIJOS (vía getSeedTimestamp) - no cambian en cada recarga
+ * 2. `isSeed: true` como flag explícito (no solo por prefijo de id)
+ * 3. `resourceUrl: ""` vacío - fuerza fallback a TTS del navegador
+ * 4. `audioScript` agregado - permite generar audio local sin internet
+ * 5. `estimatedDuration` - para mostrar "Audio: 3 min" en UI
+ * 6. `difficulty` - para adaptar ZPD automáticamente
  */
 
-export const DBA_SEED_CONTENT: CourseMaterial[] = [
+export interface SeedCourseMaterial extends CourseMaterial {
+  isSeed: true;
+  requiresAudioGeneration?: boolean;
+  audioScript?: string;
+  estimatedDuration?: number; // segundos
+  difficulty?: 'basic' | 'intermediate' | 'advanced';
+}
+
+export const DBA_SEED_CONTENT: SeedCourseMaterial[] = [
   // === MATEMÁTICAS SEMILLA ===
   {
     id: "seed-mat-11-01",
@@ -216,16 +248,21 @@ A) Coseno
 B) Seno
 C) Tangente
 
-[?? MODO OFFLINE]
- Seno = opuesto/hipotenusa
- Coseno = adyacente/hipotenusa
- Reflexión: ¿Dónde más ves triángulos en tu pueblo?`,
+[📥 MODO OFFLINE]
+• Seno = opuesto/hipotenusa
+• Coseno = adyacente/hipotenusa
+• Reflexión: ¿Dónde más ves triángulos en tu pueblo?`,
     hasAudio: true,
-    timestamp: Date.now(),
+    timestamp: getSeedTimestamp(),
     moduleId: "m1",
     toolId: "audio",
-    resourceUrl: "https://storage.googleapis.com/eduglobal365/podcasts/11_mat_trigonometria.mp3",
-    dbaCode: "MAT-11-DBA-01"
+    resourceUrl: "", // Vacío - usa TTS del navegador
+    dbaCode: "MAT-11-DBA-01",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 180,
+    difficulty: 'intermediate',
+    audioScript: "La trigonometría no son solo fórmulas. Es la herramienta que usan los agrimensores para medir tierras en Colombia. Estudiamos el triángulo rectángulo: un ángulo de 90 grados con su hipotenusa y los catetos opuesto y adyacente. Con el seno, coseno y tangente podemos deducir distancias imposibles de medir con cinta tradicional."
   },
   {
     id: "seed-mat-11-02",
@@ -243,16 +280,21 @@ A) El área bajo la curva
 B) La pendiente de la recta tangente
 C) El volumen de un sólido
 
-[?? MODO OFFLINE]
- Derivada = tasa de cambio instantánea
- Integral = acumulación o área
- Reflexión: ¿Qué cosas cambian rápido en tu vida diaria?`,
+[📥 MODO OFFLINE]
+• Derivada = tasa de cambio instantánea
+• Integral = acumulación o área
+• Reflexión: ¿Qué cosas cambian rápido en tu vida diaria?`,
     hasAudio: true,
-    timestamp: Date.now(),
+    timestamp: getSeedTimestamp(),
     moduleId: "m2",
     toolId: "audio",
-    resourceUrl: "https://storage.googleapis.com/eduglobal365/podcasts/11_mat_calculo.mp3",
-    dbaCode: "MAT-11-DBA-02"
+    resourceUrl: "",
+    dbaCode: "MAT-11-DBA-02",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 190,
+    difficulty: 'advanced',
+    audioScript: "El cálculo estudia el cambio. Cuando un comerciante de Ráquira ve cómo varían sus ventas en diciembre, está pensando como un matemático. La derivada nos dice qué tan rápido cambia algo en un momento exacto, y la integral nos dice cuánto se acumuló en total."
   },
   {
     id: "seed-mat-10-01",
@@ -270,16 +312,21 @@ A) Dividir entre 2
 B) Restar 5 a ambos lados
 C) Multiplicar por x
 
-[?? MODO OFFLINE]
- Despejar: operación inversa
- Lo que haces a un lado, hazlo al otro
- Reflexión: ¿Cuándo en tu casa usan ecuaciones sin saberlo?`,
+[📥 MODO OFFLINE]
+• Despejar: operación inversa
+• Lo que haces a un lado, hazlo al otro
+• Reflexión: ¿Cuándo en tu casa usan ecuaciones sin saberlo?`,
     hasAudio: true,
-    timestamp: Date.now(),
+    timestamp: getSeedTimestamp(),
     moduleId: "m1",
     toolId: "audio",
-    resourceUrl: "https://storage.googleapis.com/eduglobal365/podcasts/10_mat_algebra.mp3",
-    dbaCode: "MAT-10-DBA-01"
+    resourceUrl: "",
+    dbaCode: "MAT-10-DBA-01",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 170,
+    difficulty: 'intermediate',
+    audioScript: "Una ecuación es un balance. Como cuando repartes el café de la cosecha entre los trabajadores del campo: debe ser justo. Para despejar la X, aplicas la operación inversa en ambos lados de la igualdad."
   },
 
   // === CIENCIAS NATURALES SEMILLA ===
@@ -299,16 +346,21 @@ A) masa × velocidad
 B) masa × aceleración
 C) peso × tiempo
 
-[?? MODO OFFLINE]
- F = m·a
- Toda acción tiene reacción
- Reflexión: ¿Por qué te empujas hacia atrás cuando un bus arranca?`,
+[📥 MODO OFFLINE]
+• F = m·a
+• Toda acción tiene reacción
+• Reflexión: ¿Por qué te empujas hacia atrás cuando un bus arranca?`,
     hasAudio: true,
-    timestamp: Date.now(),
+    timestamp: getSeedTimestamp(),
     moduleId: "cn1",
     toolId: "audio",
-    resourceUrl: "https://storage.googleapis.com/eduglobal365/podcasts/11_cna_fisica.mp3",
-    dbaCode: "CNA-11-DBA-01"
+    resourceUrl: "",
+    dbaCode: "CNA-11-DBA-01",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 200,
+    difficulty: 'advanced',
+    audioScript: "Cada vez que un bus de escalera sube una cuesta andina, la física está en acción: fuerza, fricción, gravedad. Las tres Leyes de Newton nos explican la inercia, la fuerza como producto de masa por aceleración, y la famosa ley de Acción y Reacción."
   },
   {
     id: "seed-cna-10-02",
@@ -326,16 +378,21 @@ A) Derretir mantequilla
 B) Quemar leña
 C) Disolver azúcar
 
-[?? MODO OFFLINE]
- Físico = cambia forma, no sustancia
- Químico = nueva sustancia
- Reflexión: ¿Qué reacciones químicas hay en tu cocina ahora?`,
+[📥 MODO OFFLINE]
+• Físico = cambia forma, no sustancia
+• Químico = nueva sustancia
+• Reflexión: ¿Qué reacciones químicas hay en tu cocina ahora?`,
     hasAudio: true,
-    timestamp: Date.now(),
+    timestamp: getSeedTimestamp(),
     moduleId: "cn2",
     toolId: "audio",
-    resourceUrl: "https://storage.googleapis.com/eduglobal365/podcasts/10_cna_quimica.mp3",
-    dbaCode: "CNA-10-DBA-02"
+    resourceUrl: "",
+    dbaCode: "CNA-10-DBA-02",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 185,
+    difficulty: 'intermediate',
+    audioScript: "Cuando preparas arepa, pan o chocolate, estás haciendo química: reacciones, cambios de estado, mezclas. Diferencia entre cambio físico, donde solo cambia la forma, y cambio químico, donde se forma una nueva sustancia."
   },
 
   // === CIENCIAS SOCIALES SEMILLA ===
@@ -353,18 +410,23 @@ C) Disolver azúcar
 Colombia tiene costas en:
 A) Pacífico y Atlántico
 B) Pacífico y Caribe
-C) Atlántico y Índico
+C) Atlántico e Índico
 
-[?? MODO OFFLINE]
- Posición estratégica = poder
- Recursos naturales = conflicto potencial
- Reflexión: ¿Cómo protegerías la Amazonía si fueras presidente?`,
+[📥 MODO OFFLINE]
+• Posición estratégica = poder
+• Recursos naturales = conflicto potencial
+• Reflexión: ¿Cómo protegerías la Amazonía si fueras presidente?`,
     hasAudio: true,
-    timestamp: Date.now(),
+    timestamp: getSeedTimestamp(),
     moduleId: "cs1",
     toolId: "audio",
-    resourceUrl: "https://storage.googleapis.com/eduglobal365/podcasts/11_cso_geopolitica.mp3",
-    dbaCode: "CSO-11-DBA-01"
+    resourceUrl: "",
+    dbaCode: "CSO-11-DBA-01",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 195,
+    difficulty: 'advanced',
+    audioScript: "Colombia está en una posición geográfica única: puente entre dos océanos, con recursos que el mundo necesita. Estudiamos geopolítica: cómo la geografía, los recursos y las relaciones internacionales definen el poder de las naciones."
   },
   {
     id: "seed-cso-10-03",
@@ -382,16 +444,21 @@ A) Kant
 B) Descartes
 C) Aristóteles
 
-[?? MODO OFFLINE]
- Pensamiento crítico = cuestionar
- Ética = cómo deberíamos actuar
- Reflexión: ¿Qué decisión difícil te hace pensar como filósofo?`,
+[📥 MODO OFFLINE]
+• Pensamiento crítico = cuestionar
+• Ética = cómo deberíamos actuar
+• Reflexión: ¿Qué decisión difícil te hace pensar como filósofo?`,
     hasAudio: true,
-    timestamp: Date.now(),
+    timestamp: getSeedTimestamp(),
     moduleId: "cs3",
     toolId: "audio",
-    resourceUrl: "https://storage.googleapis.com/eduglobal365/podcasts/10_cso_filosofia.mp3",
-    dbaCode: "CSO-10-DBA-03"
+    resourceUrl: "",
+    dbaCode: "CSO-10-DBA-03",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 175,
+    difficulty: 'intermediate',
+    audioScript: "La filosofía no es solo para universidades. Es preguntarse por qué hacemos lo que hacemos, como cuando elegimos entre estudiar o trabajar. Hoy repasamos la ética utilitaria y el pensamiento crítico de Descartes."
   },
 
   // === HUMANIDADES SEMILLA ===
@@ -411,16 +478,21 @@ A) Álvaro Mutis
 B) Gabriel García Márquez
 C) Fernando Botero
 
-[?? MODO OFFLINE]
- Realismo mágico = lo cotidiano + lo asombroso
- Literatura = espejo de una cultura
- Reflexión: ¿Qué historia de tu familia merece ser contada?`,
+[📥 MODO OFFLINE]
+• Realismo mágico = lo cotidiano + lo asombroso
+• Literatura = espejo de una cultura
+• Reflexión: ¿Qué historia de tu familia merece ser contada?`,
     hasAudio: true,
-    timestamp: Date.now(),
+    timestamp: getSeedTimestamp(),
     moduleId: "hl1",
     toolId: "audio",
-    resourceUrl: "https://storage.googleapis.com/eduglobal365/podcasts/11_hum_literatura.mp3",
-    dbaCode: "HUM-11-DBA-01"
+    resourceUrl: "",
+    dbaCode: "HUM-11-DBA-01",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 185,
+    difficulty: 'intermediate',
+    audioScript: "Cada región de Colombia tiene su voz literaria: el costeño García Márquez, el antioqueño Mejía Vallejo, la bogotana Piedad Bonnett. El realismo mágico mezcla lo cotidiano con lo asombroso, y es la marca de nuestra literatura ante el mundo."
   },
 
   // === INGLÉS SEMILLA ===
@@ -440,29 +512,66 @@ A) I have lived here since three years.
 B) I have lived here for three years.
 C) I live here since three years.
 
-[?? MODO OFFLINE]
- "Since" + specific point in time
- "For" + duration
- Reflexión: ¿How would English change YOUR future?`,
+[📥 MODO OFFLINE]
+• "Since" + specific point in time
+• "For" + duration
+• Reflexión: ¿How would English change YOUR future?`,
     hasAudio: true,
-    timestamp: Date.now(),
+    timestamp: getSeedTimestamp(),
     moduleId: "ie1",
     toolId: "audio",
-    resourceUrl: "https://storage.googleapis.com/eduglobal365/podcasts/11_ing_opportunities.mp3",
-    dbaCode: "ING-11-DBA-01"
+    resourceUrl: "",
+    dbaCode: "ING-11-DBA-01",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 165,
+    difficulty: 'basic',
+    audioScript: "English opens doors. For a student in Necoclí, it could mean working in tourism, tech, or studying abroad. Today we practice Present Perfect tense with since and for, and prepare for real job interview questions."
+  },
+  {
+    id: "seed-ing-10-01",
+    grade: "10°",
+    subject: "Inglés",
+    topic: "Conditional Sentences for Real Life",
+    textContent: `Conditional sentences help you talk about possibilities. "If I had money, I would travel" - that's a second conditional!
+
+[RETO_VEREDA]
+Imagine you won a scholarship. What would you study? Write (mentally) a second conditional sentence.
+
+[QUIZ_FLASH]
+Complete: "If I ___ the president, I would improve rural schools."
+A) am
+B) was
+C) were
+
+[📥 MODO OFFLINE]
+• First conditional: real possibilities
+• Second conditional: imaginary situations
+• Reflexión: ¿What would YOU do if you had a million dollars?`,
+    hasAudio: true,
+    timestamp: getSeedTimestamp(),
+    moduleId: "ie1",
+    toolId: "audio",
+    resourceUrl: "",
+    dbaCode: "ING-10-DBA-01",
+    isSeed: true,
+    requiresAudioGeneration: true,
+    estimatedDuration: 170,
+    difficulty: 'intermediate',
+    audioScript: "Conditional sentences help you talk about possibilities. If I had money, I would travel - that is a second conditional! Today we practice real and imaginary situations for everyday conversations."
   }
 ];
 
 // ============================================================================
-// ?? HELPERS
+// 🔧 HELPERS
 // ============================================================================
 
 /**
  * Verifica si un material es contenido semilla (por defecto) o creado por docente.
- * Útil para distinguir contenido curado de contenido generado.
+ * Usa el flag `isSeed` explícito (más confiable que el prefijo del id).
  */
-export const isSeedMaterial = (material: CourseMaterial): boolean => {
-  return material.id?.startsWith("seed-") ?? false;
+export const isSeedMaterial = (material: CourseMaterial): material is SeedCourseMaterial => {
+  return 'isSeed' in material && material.isSeed === true;
 };
 
 /**
@@ -477,7 +586,7 @@ export const getInteractionPoints = (dbaCode: string): InteractionPoint[] => {
  * Obtiene materiales semilla para una asignatura y grado específicos.
  * Útil para poblar el dashboard cuando no hay internet ni materiales docente.
  */
-export const getSeedMaterialsBySubject = (subject: string, grade?: string): CourseMaterial[] => {
+export const getSeedMaterialsBySubject = (subject: string, grade?: string): SeedCourseMaterial[] => {
   return DBA_SEED_CONTENT.filter(m => {
     const matchSubject = m.subject.toLowerCase().trim() === subject.toLowerCase().trim();
     if (grade) {
@@ -495,4 +604,12 @@ export const getAvailableDBACodes = (): string[] => {
   const fromInteractions = Object.keys(INTERACTION_POINTS);
   const fromContent = DBA_SEED_CONTENT.map(m => m.dbaCode);
   return [...new Set([...fromInteractions, ...fromContent])];
+};
+
+/**
+ * Busca un material semilla específico por su dbaCode.
+ * Útil cuando el estudiante entra a un módulo y necesitamos su metadata.
+ */
+export const getSeedByDbaCode = (dbaCode: string): SeedCourseMaterial | undefined => {
+  return DBA_SEED_CONTENT.find(m => m.dbaCode === dbaCode);
 };

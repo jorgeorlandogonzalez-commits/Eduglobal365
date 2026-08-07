@@ -1,15 +1,15 @@
+// src/services/geminiService.ts
 import { Message, Role, UserRole, CourseMaterial } from "../config/types";
-import { SYSTEM_INSTRUCTIONS_V5_1 } from "../config/constants";
-import { FirestoreService } from "./firestoreService";
+import { SYSTEM_INSTRUCTIONS_V5 } from "../config/constants";
 import { StorageService } from "./storageService";
 import { webLLMInstance } from "./webLLMService";
 
 // ============================================================================
-// 🤖 IA LOCAL REAL (WebLLM) - Reemplaza el simulador fake
+// 🤖 IA LOCAL REAL (WebLLM) - Inferencia 100% offline vía WebGPU
 // ============================================================================
 
 /**
- * Genera respuesta usando IA local 100% offline vía WebLLM (Gemma 2B).
+ * Genera respuesta usando IA local vía WebLLM (Gemma 2B).
  * Se ejecuta en el navegador del usuario, sin internet, sin API keys.
  */
 export const sendMessageToGemmaOffline = async (
@@ -20,6 +20,7 @@ export const sendMessageToGemmaOffline = async (
 ): Promise<string> => {
   const normSubject = subjectContext || "General";
   
+  // ✅ Intentar WebLLM real si está listo
   if (webLLMInstance.isReady()) {
     try {
       return await webLLMInstance.generate(chatHistory, newMessage, normSubject, userRole);
@@ -28,15 +29,23 @@ export const sendMessageToGemmaOffline = async (
     }
   }
 
-  // Fallback to static text if WebLLM is not loaded yet
-  const materials = await FirestoreService.getCourseMaterials(normSubject);
+  // ✅ Fallback estático: leer de StorageService (IndexedDB), NO de Firestore
+  const materials = await StorageService.getCourseMaterials(normSubject);
   const matchedMaterial = materials[0];
   const prefix = "[💡 GEMMA 4 LOCAL ENGINE - INFERENCIA CLIENT-SIDE WebGPU]";
 
-  if (newMessage.toUpperCase().includes("SIMULACRO") || newMessage.toUpperCase().includes("SISTEMA") || chatHistory.some(h => h.text.includes("SIMULACRO"))) {
-    return prefix + " ¡Hola! Iniciamos el Simulacro de Entrenamiento en modo Offline.\nPregunta 1 de 5:\nSi en una vereda el cultivo de café produce 120 bultos y se vende el 40% a la cooperativa local, ¿cuántos bultos le quedan al agricultor?\nA) 48 bultos\nB) 72 bultos\nC) 60 bultos\nD) 80 bultos\nPor favor, escribe solo la opción correcta (A, B, C o D). ¡Pilas con el análisis!";
+  // Modo Simulacro
+  if (newMessage.toUpperCase().includes("SIMULACRO") || 
+      newMessage.toUpperCase().includes("SISTEMA") || 
+      chatHistory.some(h => h.text.includes("SIMULACRO"))) {
+    return `${prefix} ¡Hola! Iniciamos el Simulacro de Entrenamiento en modo Offline.\n` +
+           `Pregunta 1 de 5:\n` +
+           `Si en una vereda el cultivo de café produce 120 bultos y se vende el 40% a la cooperativa local, ¿cuántos bultos le quedan al agricultor?\n` +
+           `A) 48 bultos\nB) 72 bultos\nC) 60 bultos\nD) 80 bultos\n` +
+           `Por favor, escribe solo la opción correcta (A, B, C o D). ¡Pilas con el análisis!`;
   }
 
+  // Modo Estándar con RAG local
   let ragText = "";
   let dbaCode = "GEN-DBA-01";
   if (matchedMaterial) {
@@ -44,7 +53,40 @@ export const sendMessageToGemmaOffline = async (
     dbaCode = matchedMaterial.dbaCode;
   }
 
-  return prefix + " ¡Hola! Operando desde el motor local estático. 🧑‍🎓\nDado que no tenemos conexión activa y el modelo local 3D no ha terminado de cargar, usamos la base estática.\n**Tema de estudio:** " + normSubject + " (Trazado con DBA: " + dbaCode + ")\n" + (matchedMaterial ? "Basándonos en la guía del profesor sobre **\"" + matchedMaterial.topic + "\"**:\n" + ragText.substring(0, 150) + "..." : "Vamos a repasar conceptos clave de esta materia.") + "\n\n[QUIZ_FLASH]\n¿Cuál es la regla fundamental para asimilar conocimiento de forma crítica?\nA) Memorizar al pie de la letra toda la teoría.\nB) Cuestionar la lógica y aplicarlo a un problema real de tu región.\nC) Dejar la tarea para el último día.\n\n[RETO_VEREDA]\n**El Reto de tu Vereda:** Conversa con tu familia sobre cómo este conocimiento de " + normSubject + " se aplica a los precios de mercado en el pueblo.\n\n[📥 MODO OFFLINE: Resumen listo]\n- **Enfoque Socrático**: Cuestiona todo y busca la utilidad práctica.\n- **Dato Curioso**: El cerebro aprende un 60% más rápido cuando el problema tiene impacto en tu vida diaria.\n\n¿Cuál es tu respuesta para el Quiz Flash?";
+  // Respuesta para Track Constructor
+  if (userRole === 'builder') {
+    return `${prefix} ¡Pilas Colega! Operando Localmente. 🛠️\n` +
+           `He revisado tu proyecto en el silo de ${normSubject}.\n\n` +
+           `[CODE_SNIPPET]\n` +
+           `// Patrón de persistencia local resiliente\n` +
+           `export const checkAndSyncLocalData = async () => {\n` +
+           `  const pendingData = await StorageService.getSyncQueue();\n` +
+           `  if (navigator.onLine && pendingData.length > 0) {\n` +
+           `    console.log("Sincronizando con nube...");\n` +
+           `  }\n` +
+           `};\n\n` +
+           `[ARCHITECTURE_TIP]\n` +
+           `Utiliza Service Workers enfocados únicamente en caching de audios. ` +
+           `Esto reduce el consumo de datos de 15MB a 0MB una vez cacheado.\n\n` +
+           `¿Qué paso seguimos con el desarrollo de tu solución? ¡De una!`;
+  }
+
+  // Respuesta para Track Estudiante
+  return `${prefix} ¡Hola! Operando desde el motor local de tu dispositivo. 🧑‍🎓\n` +
+         `**Tema de estudio:** ${normSubject} (Trazado con DBA: ${dbaCode})\n` +
+         `${matchedMaterial 
+           ? `Basándonos en la guía del profesor sobre **"${matchedMaterial.topic}"**:\n${ragText.substring(0, 200)}...` 
+           : `Vamos a repasar conceptos clave de esta materia.`}\n\n` +
+         `[QUIZ_FLASH]\n¿Cuál es la regla fundamental para asimilar conocimiento de forma crítica?\n` +
+         `A) Memorizar al pie de la letra toda la teoría.\n` +
+         `B) Cuestionar la lógica y aplicarlo a un problema real de tu región.\n` +
+         `C) Dejar la tarea para el último día.\n\n` +
+         `[RETO_VEREDA]\n**El Reto de tu Vereda:** Conversa con tu familia sobre cómo este ` +
+         `conocimiento de ${normSubject} se aplica a los precios de mercado en el pueblo.\n\n` +
+         `[📥 MODO OFFLINE]\n` +
+         `• Enfoque Socrático: Cuestiona todo\n` +
+         `• Dato Curioso: El cerebro aprende 60% más rápido con problemas reales\n\n` +
+         `¿Cuál es tu respuesta para el Quiz Flash?`;
 };
 
 // ============================================================================
@@ -53,7 +95,7 @@ export const sendMessageToGemmaOffline = async (
 
 /**
  * Sends a message to the Gemini service.
- * Automatically falls back to WebLLM local engine if the network is down or API fails!
+ * Automatically falls back to WebLLM local engine if the network is down or API fails.
  */
 export const sendMessageToGemini = async (
   chatHistory: Message[],
@@ -82,7 +124,7 @@ export const sendMessageToGemini = async (
       parts: [{ text: msg.text }],
     }));
 
-    // 🆕 CARGAR PERFIL DEL ESTUDIANTE (ZPD + Región + Gamificación)
+    // ✅ CARGAR PERFIL DEL ESTUDIANTE (ZPD + Región + Gamificación)
     let zpdLevel = 2;
     let userRegion = 'bogota';
     let userStreak = 0;
@@ -91,29 +133,39 @@ export const sendMessageToGemini = async (
       const profile = await StorageService.getStudentProfile();
       if (profile) {
         zpdLevel = (profile as any).zpd?.level || 2;
-        userRegion = profile.location || 'bogota';
+        userRegion = (profile as any).region || 'bogota';
         userStreak = profile.streak || 0;
       }
     } catch (e) {
       console.warn("No se pudo cargar perfil para personalización:", e);
     }
 
-    // 🆕 CONSTRUIR SYSTEM INSTRUCTION DINÁMICO CON v5.1
-    let dynamicSystemInstruction = SYSTEM_INSTRUCTIONS_V5_1;
-
-    dynamicSystemInstruction += "\n\n<PERFIL_ESTUDIANTE_ACTUAL>\nROL: " + activeRole + "\nNIVEL ZPD: " + zpdLevel + " (1=Básico/andamiaje alto, 2=Intermedio, 3=Avanzado/desafío)\nREGIÓN: " + userRegion + "\nRACHA ACTUAL: " + userStreak + " días\n</PERFIL_ESTUDIANTE_ACTUAL>";
+    // ✅ CONSTRUIR SYSTEM INSTRUCTION DINÁMICO CON v5.1
+    let dynamicSystemInstruction = SYSTEM_INSTRUCTIONS_V5;
+    dynamicSystemInstruction += `\n\n<PERFIL_ESTUDIANTE_ACTUAL>\n` +
+                                `ROL: ${activeRole}\n` +
+                                `NIVEL ZPD: ${zpdLevel} (1=Básico/andamiaje alto, 2=Intermedio, 3=Avanzado/desafío)\n` +
+                                `REGIÓN: ${userRegion}\n` +
+                                `RACHA ACTIVA: ${userStreak} días\n` +
+                                `</PERFIL_ESTUDIANTE_ACTUAL>`;
 
     let finalPrompt = newMessage;
 
     if (subjectContext) {
-      finalPrompt = "[CONTEXTO: ESTOY EN EL SILO DE " + subjectContext.toUpperCase() + ". ACTÚA SEGÚN ESE PROTOCOLO] " + newMessage;
+      finalPrompt = `[CONTEXTO: ESTOY EN EL SILO DE ${subjectContext.toUpperCase()}. ACTÚA SEGÚN ESE PROTOCOLO] ${newMessage}`;
             
       try {
-        const materials = await FirestoreService.getCourseMaterials(subjectContext);
+        // ✅ LEER DE INDEXEDDB (StorageService), NO DE FIRESTORE
+        const materials = await StorageService.getCourseMaterials(subjectContext);
         if (materials.length > 0) {
-          const ragContext = materials.map(m => "TEMA: " + m.topic + "\nDBA_CODE: " + (m.dbaCode || 'N/A') + "\nCONTENIDO CURADO:\n" + m.textContent.substring(0, 1500)).join('\n\n');
+          const ragContext = materials.map(m => 
+            `TEMA: ${m.topic}\nDBA_CODE: ${m.dbaCode || 'N/A'}\nCONTENIDO CURADO:\n${m.textContent.substring(0, 1500)}`
+          ).join('\n\n');
                   
-          dynamicSystemInstruction += "\n\n<CONTEXTO_RAG_DOCENTE>\nEl profesor ha subido el siguiente material oficial. DEBES basar tus respuestas, quices y retos EXCLUSIVAMENTE en esta información. Cita el DBA_CODE cuando sea relevante:\n\n" + ragContext + "\n</CONTEXTO_RAG_DOCENTE>";
+          dynamicSystemInstruction += `\n\n<CONTEXTO_RAG_DOCENTE>\n` +
+                                     `El profesor ha subido el siguiente material oficial. DEBES basar tus respuestas, ` +
+                                     `quices y retos EXCLUSIVAMENTE en esta información. Cita el DBA_CODE cuando sea relevante:\n\n` +
+                                     `${ragContext}\n</CONTEXTO_RAG_DOCENTE>`;
         }
       } catch (e) {
         console.warn("No se pudo cargar RAG:", e);
@@ -122,6 +174,7 @@ export const sendMessageToGemini = async (
 
     contents.push({ role: 'user', parts: [{ text: finalPrompt }] });
 
+    // ✅ Backend BFF (protege API key en servidor)
     const response = await fetch('/api/gemini/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -142,13 +195,15 @@ export const sendMessageToGemini = async (
     const data = await response.json();
     const responseText = data.text || "";
 
-    // 🆕 VALIDACIÓN ANTI-ALUCINACIÓN DBA
+    // ✅ VALIDACIÓN ANTI-ALUCINACIÓN DBA
     if (subjectContext && !responseText.includes('DBA-') && !responseText.includes('competencia')) {
       console.warn("⚠️ Respuesta sin cita DBA detectada. Se mantiene pero se registra para revisión.");
     }
 
-    // 🆕 AGREGAR A COLA DE SINCRONIZACIÓN
-    if (responseText.includes('[📥 MODO OFFLINE]') || responseText.toLowerCase().includes('¡correcto!') || responseText.toLowerCase().includes('¡excelente!')) {
+    // ✅ AGREGAR A COLA DE SINCRONIZACIÓN cuando hay logros
+    if (responseText.includes('[📥 MODO OFFLINE]') || 
+        responseText.toLowerCase().includes('¡correcto!') || 
+        responseText.toLowerCase().includes('¡excelente!')) {
       try {
         await StorageService.addToSyncQueue({
           type: 'progress',
@@ -162,12 +217,7 @@ export const sendMessageToGemini = async (
     return responseText;
   } catch (error) {
     console.error("Error calling Gemini API, falling back to local WebLLM Engine:", error);
-    
-    const localAvailable = webLLMInstance.isReady();
-    if (localAvailable) {
-      return await sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
-    }
-    
+    // ✅ Fallback único y limpio (antes estaba duplicado)
     return await sendMessageToGemmaOffline(chatHistory, newMessage, subjectContext, activeRole);
   }
 };
@@ -183,7 +233,8 @@ export const autoGenerateMaterial = async (
   toolId: string,
   teacherGuidelines?: string
 ): Promise<{ dbaCode: string; topic: string; textContent: string; resourceUrl: string }> => {
-  const standardGuidelines = teacherGuidelines || "Material práctico interactivo enfocado en problemáticas reales de la agricultura o el comercio local colombiano.";
+  const standardGuidelines = teacherGuidelines || 
+    "Material práctico interactivo enfocado en problemáticas reales de la agricultura o el comercio local colombiano.";
   
   const prompt = `
   Como un Agente AI experto de EduGlobal365 y consultor curricular del Ministerio de Educación Nacional de Colombia:
@@ -204,16 +255,12 @@ export const autoGenerateMaterial = async (
   - Regional: usa ejemplos de Colombia (Urabá, Boyacá, Caribe, Amazonía, Eje Cafetero, Bogotá).
   
   Debes generar:
-  1. Un código DBA real y válido alineado con la materia y grado (ej. MAT-11-DBA-01, HUM-10-DBA-02, CNA-09-DBA-01).
-  2. Un título creativo de tema (Topic) sumamente atractivo.
-  3. El contenido textual didáctico (para inyección RAG y estudio). Debe incluir:
-     - Una explicación conceptual socrática en menos de 4 párrafos cortos.
-     - Un bloque de [RETO_VEREDA] que sea un problema realista contextualizado en Colombia.
-     - Un bloque de [QUIZ_FLASH] de opción múltiple (A, B, C) rápido para medir asimilación inmediata.
-     - Un cierre [📥 MODO OFFLINE] con 2 bullet points clave.
-  4. Una sugerencia de URL de recurso multimedia (un podcast educativo o recurso auto-contenido).
+  1. Un código DBA real y válido (ej. MAT-11-DBA-01, HUM-10-DBA-02).
+  2. Un título creativo de tema.
+  3. Contenido textual didáctico con [RETO_VEREDA], [QUIZ_FLASH] y [📥 MODO OFFLINE].
+  4. Una sugerencia de URL de recurso multimedia.
 
-  Retorna únicamente un formato JSON válido con las siguientes claves: "dbaCode", "topic", "textContent", "resourceUrl". No incluyas explicaciones previas ni bloques de formato markdown excepto el propio JSON crudo.
+  Retorna únicamente JSON con claves: "dbaCode", "topic", "textContent", "resourceUrl".
   `;
   
   try {
@@ -229,7 +276,7 @@ export const autoGenerateMaterial = async (
         
     const dataResponse = await response.json();
     const text = dataResponse.text || "";
-    const cleanText = text.replace(/\`\`\`json/gi, "").replace(/\`\`\`/gi, "").trim();
+    const cleanText = text.replace(/```json/gi, "").replace(/```/gi, "").trim();
     const data = JSON.parse(cleanText);
         
     return {
@@ -239,38 +286,22 @@ export const autoGenerateMaterial = async (
       resourceUrl: data.resourceUrl || `https://storage.googleapis.com/eduglobal365/podcasts/${grade}_${subject.substring(0,3).toLowerCase()}_resumen.mp3`
     };
   } catch (error) {
-    console.error("Error auto-generating material via Gemini Agent, using local fallback template:", error);
+    console.error("Error auto-generating material, using local fallback:", error);
     
     const subjectAbbr = subject.substring(0, 3).toUpperCase();
     const gradeNum = grade.replace('°', '');
-    const fallbackDba = `${subjectAbbr}-${gradeNum}-DBA-01`;
-    const fallbackTopic = `🚀 Súper Reto Virtual: ¡Domina ${moduleTitle}!`;
-    const fallbackTextContent = `
-¡Bienvenido al reto inteligente de ${moduleTitle}!
-
-En esta lección corta, desglosaremos los fundamentos esenciales alineados con el Estándar de Competencia del MEN.
-
-¿Cuál es la esencia? Aprender haciendo.
-Para asimilar este contenido, recuerda aplicar los 3 pasos: Escuchar el resumen didáctico, auto-evaluarte con dudas rápidas y superar el Reto de tu Vereda.
-
-[RETO_VEREDA]
-**Análisis Territorial:** En las parcelas cercanas a Necoclí, la rotación de cosechas incrementa un 35% de productividad. Diseña un plan donde uses los fundamentos de ${moduleTitle} para optimizar el área de siembra de 3 agricultores vecinos.
-
-[QUIZ_FLASH]
-¿Cuál es la forma más rápida de acelerar tu aprendizaje regional?
-A) Escribir en papel tus ideas y validarlas con el Tutor Edú o tus productores rurales locales.
-B) Copiar y pegar sin leer.
-C) Guardar el material y no volver a abrirlo.
-
-[📥 MODO OFFLINE]
-• Enfoque Socrático: Cuestiona todo y busca la utilidad práctica.
-• Dato Curioso: El cerebro aprende un 60% más rápido cuando el problema tiene rostro e impacto en tu vida diaria.
-`;
-
+    
     return {
-      dbaCode: fallbackDba,
-      topic: fallbackTopic,
-      textContent: fallbackTextContent.trim(),
+      dbaCode: `${subjectAbbr}-${gradeNum}-DBA-01`,
+      topic: `🚀 Súper Reto Virtual: ¡Domina ${moduleTitle}!`,
+      textContent: `¡Bienvenido al reto inteligente de ${moduleTitle}!\n\n` +
+                   `[RETO_VEREDA]\nEn las parcelas cercanas a Necoclí, la rotación de cosechas ` +
+                   `incrementa un 35% de productividad. Diseña un plan usando los fundamentos de ${moduleTitle}.\n\n` +
+                   `[QUIZ_FLASH]\n¿Cuál es la forma más rápida de acelerar tu aprendizaje regional?\n` +
+                   `A) Escribir en papel tus ideas y validarlas con el Tutor Edú.\n` +
+                   `B) Copiar y pegar sin leer.\n` +
+                   `C) Guardar el material y no volver a abrirlo.\n\n` +
+                   `[📥 MODO OFFLINE]\n• Enfoque Socrático: Cuestiona todo\n• El cerebro aprende 60% más rápido con problemas reales`,
       resourceUrl: `https://storage.googleapis.com/eduglobal365/podcasts/${gradeNum}_${subjectAbbr.toLowerCase()}_offline_base.mp3`
     };
   }
