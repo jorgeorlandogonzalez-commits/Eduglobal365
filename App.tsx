@@ -1,16 +1,18 @@
 // src/App.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Message, Role, StudentProfile, AppView, SimulationState, 
-  SubjectModule, NotebookTool, CourseMaterial, UserRole, BuilderProject 
+import {
+  Message, Role, StudentProfile, AppView, SimulationState,
+  SubjectModule, NotebookTool, CourseMaterial, UserRole
 } from './config/types';
-import { getInitialUserMessage, APP_NAME, SIMULATION_TRIGGER_MESSAGE } from './config/constants';
+import { APP_NAME, SIMULATION_TRIGGER_MESSAGE } from './config/constants';
 import { INTERACTION_POINTS } from './config/dbaSeedContent';
 import { sendMessageToGemini } from './services/geminiService';
 import { StorageService } from './services/storageService';
 import { DownloadService } from './services/downloadService';
 import { webLLMInstance as WebLLMService } from './services/webLLMService';
+import { signInSilently, signInWithGoogle, logout, observeAuth } from './config/firebase';
+import type { User } from 'firebase/auth';
 import ChatBubble from './components/ChatBubble';
 import CampusMap from './components/CampusMap';
 import LandingPage, { Grade } from './components/LandingPage';
@@ -39,7 +41,7 @@ const generateUUID = () => {
 // 🚀 APP COMPONENT
 // ============================================================================
 const App: React.FC = () => {
-  // --- STATE INITIALIZATION ---
+  // --- STATE: App Core ---
   const [currentView, setCurrentView] = useState<AppView>(() => {
     const saved = StorageService.loadAppState();
     return saved?.currentView || 'LANDING';
@@ -70,13 +72,16 @@ const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // ✅ NUEVO: Estados reales de WebLLM (reemplaza simulador)
+  // --- STATE: WebLLM Local REAL (reemplaza simulador) ---
   const [forceGemmaLocal, setForceGemmaLocal] = useState(false);
   const [gemmaModelDownloading, setGemmaModelDownloading] = useState(false);
   const [gemmaProgress, setGemmaProgress] = useState(0);
   const [gemmaReady, setGemmaReady] = useState(false);
 
-  // ✅ OPTIMIZACIÓN: useRef para evitar re-renders masivos en onTimeUpdate
+  // --- STATE: Firebase Auth (opcional, nunca bloqueante) ---
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+
+  // --- STATE: Optimización audio Ping-Pong (useRef evita re-renders masivos) ---
   const lastCheckedSecond = useRef<number>(0);
   const [hasTriggeredPoint, setHasTriggeredPoint] = useState<Record<string, boolean>>({});
 
@@ -123,6 +128,17 @@ const App: React.FC = () => {
       }
     }
   });
+
+  const [currentMaterial, setCurrentMaterial] = useState<CourseMaterial | null>(null);
+
+  // ==========================================================================
+  // 🆕 EFFECT: FIREBASE AUTH SILENCIOSA (nunca bloquea la UI)
+  // ==========================================================================
+  useEffect(() => {
+    signInSilently(); // Auth anónima en background
+    const unsubscribe = observeAuth((user) => setFirebaseUser(user));
+    return unsubscribe;
+  }, []);
 
   // --- EFFECT: NETWORK MONITORING ---
   useEffect(() => {
@@ -177,15 +193,15 @@ const App: React.FC = () => {
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.role === Role.MODEL) {
         const questionMatch = lastMsg.text.match(/Pregunta\s+(\d+)\s*(?:de|\/)\s*5/i);
-        
+
         if (questionMatch) {
           setSimulationState({
             isActive: true,
             currentQuestion: parseInt(questionMatch[1]),
             totalQuestions: 5
           });
-        } 
-        
+        }
+
         if (lastMsg.text.includes("REPORTE DE COMPETENCIAS") || lastMsg.text.includes("Mentores de Vereda")) {
           setSimulationState(prev => ({ ...prev, isActive: false }));
         }
@@ -204,7 +220,7 @@ const App: React.FC = () => {
 
             const newScores = { ...currentScores, [subjectKey]: scorePercentage };
             let newCompleted = [...currentModules];
-            
+
             if (scorePercentage >= 60 && !newCompleted.includes(subjectKey)) {
               newCompleted.push(subjectKey);
             }
@@ -270,12 +286,12 @@ const App: React.FC = () => {
     }
   }, [messages, currentView]);
 
-  // ============================================================================
-  // 🆕 HANDLER: Activar WebLLM REAL (reemplaza simulador)
-  // ============================================================================
+  // ==========================================================================
+  // 🆕 HANDLER: Activar WebLLM REAL (reemplaza simulador con setInterval)
+  // ==========================================================================
   const handleActivateGemmaLocal = async () => {
     if (gemmaReady) {
-      // Desactivar modo local
+      // Desactivar modo local y liberar memoria GPU
       setForceGemmaLocal(false);
       setGemmaReady(false);
       (window as any).__forceLocalAI = false;
@@ -291,9 +307,9 @@ const App: React.FC = () => {
 
     setGemmaModelDownloading(true);
     setGemmaProgress(0);
-    
+
     try {
-      await WebLLMService.init((progress, text) => {
+      await WebLLMService.init((progress) => {
         setGemmaProgress(Math.round(progress * 100));
       });
       setGemmaReady(true);
@@ -309,9 +325,9 @@ const App: React.FC = () => {
     }
   };
 
-  // ============================================================================
-  // HANDLER: Send Message
-  // ============================================================================
+  // ==========================================================================
+  // HANDLER: Send Message (Online → Gemini | Offline/Forzado → WebLLM)
+  // ==========================================================================
   const handleSendMessage = async (text: string, isSystemTrigger = false) => {
     if ((!text.trim() && !isSystemTrigger) || isLoading || text.length > 500) return;
 
@@ -333,7 +349,6 @@ const App: React.FC = () => {
 
       try {
         const aiResponseText = await sendMessageToGemini(messages, text, activeSubject, userRole, userRole);
-        
         const aiMsg: Message = {
           id: generateUUID(),
           role: Role.MODEL,
@@ -373,7 +388,6 @@ const App: React.FC = () => {
 
     try {
       const aiResponseText = await sendMessageToGemini(messages, text, activeSubject, userRole, userRole);
-
       const aiMsg: Message = {
         id: generateUUID(),
         role: Role.MODEL,
@@ -397,9 +411,9 @@ const App: React.FC = () => {
     }
   };
 
-  // ============================================================================
+  // ==========================================================================
   // ACTIONS
-  // ============================================================================
+  // ==========================================================================
   const handleStartSimulation = async () => {
     setSimulationState({ isActive: true, currentQuestion: 0, totalQuestions: 5 });
     setIsSidebarOpen(false);
@@ -411,10 +425,10 @@ const App: React.FC = () => {
     const success = DownloadService.generateOfflinePackage(activeSubject, messages, userRole);
     if (success) {
       console.log("✅ Paquete 'Preparar para la Vereda' descargado correctamente.");
-      const systemMsg: Message = { 
-        id: generateUUID(), 
-        role: Role.MODEL, 
-        text: "✅ **Paquete Offline Generado.** El contenido de este módulo ha sido descargado a tu dispositivo. Puedes acceder a él sin conexión a internet.", 
+      const systemMsg: Message = {
+        id: generateUUID(),
+        role: Role.MODEL,
+        text: "✅ **Paquete Offline Generado.** El contenido de este módulo ha sido descargado a tu dispositivo. Puedes acceder a él sin conexión a internet.",
         timestamp: Date.now(),
         track: userRole
       };
@@ -425,9 +439,9 @@ const App: React.FC = () => {
   const generatePDF = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
-    
+
     const history = StorageService.loadSubjectChat(activeSubject || "General", userRole);
-    
+
     printWindow.document.write(`
       <html>
         <head>
@@ -474,17 +488,17 @@ const App: React.FC = () => {
     }
 
     const subjectContext = activeSubject || "General";
-    
+
     if (!activeSubject) {
       setActiveSubject(subjectContext);
       const history = StorageService.loadSubjectChat(subjectContext, userRole);
       setMessages(history);
     }
-    
+
     setCurrentView('CLASSROOM');
     setIsSidebarOpen(false);
-    
-    const toolMessage = tool === "Recursos Regionales" 
+
+    const toolMessage = tool === "Recursos Regionales"
       ? `Solicito recurso del sistema: ${tool}. (Contexto actual: ${subjectContext}, Región del estudiante: ${student.location})`
       : `Solicito recurso del sistema: ${tool}. (Contexto actual: ${subjectContext})`;
     await handleSendMessage(toolMessage);
@@ -497,17 +511,16 @@ const App: React.FC = () => {
       setIsSidebarOpen(false);
       setSimulationState({ isActive: true, currentQuestion: 1, totalQuestions: 5, score: 0 });
       setCurrentMaterial(null);
-      
+
       setMessages([]);
       setIsLoading(true);
-      
+
       try {
         const response = await sendMessageToGemini([], SIMULATION_TRIGGER_MESSAGE, "SIMULACRO ICFES", userRole, userRole);
-        
-        const aiMsg: Message = { 
-          id: generateUUID(), 
-          role: Role.MODEL, 
-          text: response, 
+        const aiMsg: Message = {
+          id: generateUUID(),
+          role: Role.MODEL,
+          text: response,
           timestamp: Date.now(),
           track: userRole
         };
@@ -526,15 +539,14 @@ const App: React.FC = () => {
     setSimulationState({ isActive: false, currentQuestion: 0, totalQuestions: 5 });
   };
 
-  // ✅ CORREGIDO: Carga real de materiales desde StorageService con filtros
+  // ✅ CORREGIDO: Carga real de materiales con filtros de materia y grado
   const handleStartModuleTool = async (module: SubjectModule, tool: NotebookTool) => {
     setCurrentView('CLASSROOM');
-    
-    // ✅ CORRECCIÓN CRÍTICA: Pasar subject y grade para filtrar correctamente
+
     const materials = StorageService.getCourseMaterials(activeSubject || undefined, student.grade);
-    const material = materials.find(m => 
-      m.subject === activeSubject && 
-      m.moduleId === module.id && 
+    const material = materials.find(m =>
+      m.subject === activeSubject &&
+      m.moduleId === module.id &&
       m.toolId === tool.id
     );
     setCurrentMaterial(material || null);
@@ -544,13 +556,13 @@ const App: React.FC = () => {
 
     if (subjectHistory.length === 0) {
       setIsLoading(true);
-      
+
       const entryText = `¡Hola Edú! Voy a estudiar el módulo "${module.title}" usando la herramienta: ${tool.label}. ¿Empezamos?`;
-      
-      const initialUserMsg: Message = { 
-        id: generateUUID(), 
-        role: Role.USER, 
-        text: entryText, 
+
+      const initialUserMsg: Message = {
+        id: generateUUID(),
+        role: Role.USER,
+        text: entryText,
         timestamp: Date.now(),
         track: userRole
       };
@@ -558,11 +570,10 @@ const App: React.FC = () => {
 
       try {
         const response = await sendMessageToGemini([], entryText, activeSubject, userRole, userRole);
-        
-        const aiMsg: Message = { 
-          id: generateUUID(), 
-          role: Role.MODEL, 
-          text: response, 
+        const aiMsg: Message = {
+          id: generateUUID(),
+          role: Role.MODEL,
+          text: response,
           timestamp: Date.now(),
           track: userRole
         };
@@ -594,23 +605,21 @@ const App: React.FC = () => {
 
   const handleReturnToCampus = () => {
     setCurrentView('CAMPUS');
-    setSimulationState(prev => ({...prev, isActive: false}));
-    setActiveSubject(null); 
+    setSimulationState(prev => ({ ...prev, isActive: false }));
+    setActiveSubject(null);
     setMessages([]);
   };
 
-  const [currentMaterial, setCurrentMaterial] = useState<CourseMaterial | null>(null);
-
-  // ============================================================================
-  // RENDER: LANDING
-  // ============================================================================
+  // ==========================================================================
+  // RENDER: LANDING / TEACHER / REWARDS / CONSTRUCTOR
+  // ==========================================================================
   if (currentView === 'LANDING') {
     return (
-      <LandingPage 
+      <LandingPage
         onStart={() => {
           setUserRole('student');
           setCurrentView('CAMPUS');
-        }} 
+        }}
         onTeacherAccess={() => {
           setUserRole('teacher');
           setCurrentView('TEACHER_PORTAL');
@@ -619,7 +628,7 @@ const App: React.FC = () => {
           setUserRole('builder');
           setCurrentView('CONSTRUCTOR_LAB');
         }}
-        studentName={student.name} 
+        studentName={student.name}
         studentGrade={student.grade as Grade}
         onGradeChange={(grade) => setStudent(prev => ({ ...prev, grade }))}
       />
@@ -632,8 +641,8 @@ const App: React.FC = () => {
 
   if (currentView === 'REWARDS') {
     return (
-      <RewardShop 
-        student={student} 
+      <RewardShop
+        student={student}
         onReturn={() => setCurrentView('CAMPUS')}
         onPurchase={(cost, itemName) => {
           setStudent(prev => ({ ...prev, points: (prev.points || 0) - cost }));
@@ -651,7 +660,7 @@ const App: React.FC = () => {
 
   if (currentView === 'CONSTRUCTOR_LAB') {
     return (
-      <ConstructorLab 
+      <ConstructorLab
         onReturn={() => setCurrentView('LANDING')}
         onStartProject={(project) => {
           setActiveSubject(project.title);
@@ -663,17 +672,17 @@ const App: React.FC = () => {
             const entryText = `¡Hola Asistente! Voy a trabajar en el proyecto "${project.title}". Mi métrica de impacto es: ${project.impactMetric}. ¿Por dónde empezamos?`;
             handleSendMessage(entryText, true);
           }
-        }} 
+        }}
       />
     );
   }
 
-  // ============================================================================
+  // ==========================================================================
   // RENDER: MAIN APP LAYOUT
-  // ============================================================================
+  // ==========================================================================
   return (
     <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300 overflow-hidden">
-      
+
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between shadow-sm z-10 sticky top-0 transition-colors duration-300">
         <div className="flex items-center gap-2 cursor-pointer" onClick={handleReturnToCampus}>
@@ -690,31 +699,29 @@ const App: React.FC = () => {
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
-          {currentView !== 'LANDING' && (
-            <div className="flex gap-2">
-              <button 
-                onClick={() => setDataSaverMode(!dataSaverMode)}
-                className={`hidden md:flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors border ${dataSaverMode ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200'}`}
-                title="Modo Ahorro de Datos (Desactiva animaciones y prefiere audio)"
-              >
-                <span>{dataSaverMode ? '🔋 Ahorro Activo' : '⚡ Normal'}</span>
-              </button>
-              
-              <button 
-                onClick={() => setShowOfflineManager(true)}
-                className="hidden md:flex items-center gap-1.5 text-xs font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 border border-green-200 dark:border-green-800 px-3 py-1.5 rounded-full transition-colors"
-                title="Gestor Offline SAS BIC"
-              >
-                <span>📥 Paquetes Offline</span>
-              </button>
-            </div>
-          )}
-          
+          <div className="flex gap-2">
+            <button
+              onClick={() => setDataSaverMode(!dataSaverMode)}
+              className={`hidden md:flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full transition-colors border ${dataSaverMode ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200'}`}
+              title="Modo Ahorro de Datos (Desactiva animaciones y prefiere audio)"
+            >
+              <span>{dataSaverMode ? '🔋 Ahorro Activo' : '⚡ Normal'}</span>
+            </button>
+
+            <button
+              onClick={() => setShowOfflineManager(true)}
+              className="hidden md:flex items-center gap-1.5 text-xs font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 border border-green-200 dark:border-green-800 px-3 py-1.5 rounded-full transition-colors"
+              title="Gestor Offline SAS BIC"
+            >
+              <span>📥 Paquetes Offline</span>
+            </button>
+          </div>
+
           {currentView === 'CLASSROOM' && (
             <div className="flex gap-2">
-              <button 
+              <button
                 onClick={handleSmartDownload}
                 className="hidden md:flex items-center gap-2 text-xs font-bold text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 border border-green-200 dark:border-green-800 px-3 py-1.5 rounded-full transition-colors"
                 title="Descargar paquete offline"
@@ -724,7 +731,7 @@ const App: React.FC = () => {
                 </svg>
                 Preparar para la Vereda
               </button>
-              <button 
+              <button
                 onClick={handleReturnToCampus}
                 className="hidden md:flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 bg-slate-100 dark:bg-slate-700 hover:bg-blue-50 dark:hover:bg-slate-600 px-3 py-1.5 rounded-full transition-colors"
               >
@@ -733,39 +740,60 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* 🆕 Botón WebLLM REAL (reemplaza simulador con setInterval) */}
+          {/* 🆕 Botón WebLLM REAL (descarga genuina con progreso) */}
           <button
             onClick={handleActivateGemmaLocal}
             disabled={gemmaModelDownloading}
             className={`
               hidden md:flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-full border transition-all duration-300
-              ${gemmaModelDownloading 
+              ${gemmaModelDownloading
                 ? 'bg-purple-100 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border-purple-300 animate-pulse'
-                : gemmaReady 
-                  ? 'bg-purple-600 text-white border-purple-700 shadow-sm' 
+                : gemmaReady
+                  ? 'bg-purple-600 text-white border-purple-700 shadow-sm'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:border-purple-400 hover:text-purple-600'}
             `}
             title={gemmaReady ? "Operando en Gemma Local (Inferencia local activa)" : "Activar Inferencia Offline con Gemma 2B"}
           >
             <span className="text-[11px]">🤖</span>
-            {gemmaModelDownloading 
-              ? `Descargando Gemma... ${gemmaProgress}%` 
-              : gemmaReady 
-                ? "Gemma Local Activo" 
+            {gemmaModelDownloading
+              ? `Descargando Gemma... ${gemmaProgress}%`
+              : gemmaReady
+                ? "Gemma Local Activo"
                 : "Activar Gemma Local"
             }
           </button>
 
+          {/* 🆕 Botón Firebase Sync (anónimo por defecto, Google opcional) */}
+          {firebaseUser ? (
+            <button
+              onClick={logout}
+              className="hidden md:flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 hover:bg-green-100 transition-colors"
+              title={firebaseUser.isAnonymous
+                ? 'Sesión local anónima (sync activo). Clic para salir.'
+                : `Sesión con Google: ${firebaseUser.email || 'conectada'}. Clic para salir.`}
+            >
+              ☁️ {firebaseUser.isAnonymous ? 'Sync Anónimo' : 'Google Conectado'}
+            </button>
+          ) : (
+            <button
+              onClick={() => signInWithGoogle().catch((e) => console.warn('Google sign-in cancelado:', e))}
+              className="hidden md:flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-colors"
+              title="Opcional: conecta tu cuenta Google para sincronizar entre dispositivos"
+            >
+              🔗 Conectar Google (opcional)
+            </button>
+          )}
+
           <div className={`
             hidden md:flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full border transition-colors duration-300
             ${(isOnline && !forceGemmaLocal)
-              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800' 
+              ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800'
               : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'}
           `}>
             <span className={`w-2 h-2 rounded-full ${(isOnline && !forceGemmaLocal) ? 'bg-blue-500' : 'bg-green-500 animate-pulse'}`}></span>
             {(isOnline && !forceGemmaLocal) ? 'Sincronizado' : 'Inferencia Local Activa (Offline)'}
           </div>
-          
+
           <button
             onClick={() => setIsDarkMode(!isDarkMode)}
             className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
@@ -782,7 +810,7 @@ const App: React.FC = () => {
             )}
           </button>
 
-          <button 
+          <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full md:hidden transition-colors"
           >
@@ -795,7 +823,7 @@ const App: React.FC = () => {
 
       {/* Main Content Layout */}
       <div className="flex flex-1 overflow-hidden relative">
-        
+
         {/* Sidebar */}
         <aside className={`
           absolute md:static top-0 left-0 h-full w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 z-20 transform transition-transform duration-300 ease-in-out
@@ -812,8 +840,8 @@ const App: React.FC = () => {
                 <p className="text-xs text-slate-500 dark:text-slate-400">{student.location}</p>
               </div>
             </div>
-            
-            <button 
+
+            <button
               onClick={handleResetCampus}
               className="mt-3 w-full flex items-center justify-center gap-2 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 py-1.5 rounded-lg transition-colors border border-red-100 dark:border-red-900/50"
             >
@@ -822,7 +850,7 @@ const App: React.FC = () => {
               </svg>
               Reiniciar Campus (Demo)
             </button>
-            
+
             {(student.progress || student.currentLevel) && (
               <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
                 <div className="flex items-center justify-between mb-2">
@@ -839,7 +867,7 @@ const App: React.FC = () => {
                     ))}
                   </div>
                 )}
-                
+
                 {student.progress && (
                   <>
                     <div className="space-y-1.5 mb-3">
@@ -850,8 +878,8 @@ const App: React.FC = () => {
                             <span className="text-slate-600 dark:text-slate-400 truncate max-w-[140px]" title={subject}>{subject}</span>
                             <div className="flex items-center gap-1.5">
                               <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`} 
+                                <div
+                                  className={`h-full rounded-full ${score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}
                                   style={{ width: `${score}%` }}
                                 ></div>
                               </div>
@@ -863,7 +891,7 @@ const App: React.FC = () => {
                         );
                       })}
                     </div>
-                    
+
                     <div>
                       <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-1">Módulos Completados</p>
                       <div className="flex flex-wrap gap-1">
@@ -881,7 +909,7 @@ const App: React.FC = () => {
           </div>
 
           <nav className="p-4 space-y-2">
-            <button 
+            <button
               onClick={handleReturnToCampus}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors text-left font-medium ${currentView === 'CAMPUS' ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}
             >
@@ -908,7 +936,7 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
-            
+
             <div className="pt-4 pb-2">
               <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Acceso Rápido</h3>
             </div>
@@ -924,8 +952,9 @@ const App: React.FC = () => {
           </nav>
         </aside>
 
+        {/* Overlay for mobile sidebar */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="absolute inset-0 bg-black/20 z-10 md:hidden"
             onClick={() => setIsSidebarOpen(false)}
           ></div>
@@ -934,7 +963,7 @@ const App: React.FC = () => {
         {/* VIEW MANAGER SWITCH */}
         <AnimatePresence mode="wait">
           {currentView === 'CAMPUS' ? (
-            <motion.div 
+            <motion.div
               key="campus"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -942,8 +971,8 @@ const App: React.FC = () => {
               transition={{ duration: 0.3 }}
               className="flex-1 overflow-hidden flex flex-col"
             >
-              <CampusMap 
-                onSelectSubject={handleEnterSubject} 
+              <CampusMap
+                onSelectSubject={handleEnterSubject}
                 onSelectTool={handleEnterTool}
                 student={student}
                 userRole={userRole}
@@ -952,7 +981,7 @@ const App: React.FC = () => {
               />
             </motion.div>
           ) : currentView === 'SUBJECT_DASHBOARD' ? (
-            <motion.div 
+            <motion.div
               key="subject_dashboard"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -960,7 +989,7 @@ const App: React.FC = () => {
               transition={{ duration: 0.3 }}
               className="flex-1 overflow-hidden flex flex-col"
             >
-              <SubjectDashboard 
+              <SubjectDashboard
                 subject={activeSubject || "General"}
                 grade={student.grade}
                 onBack={handleReturnToCampus}
@@ -968,7 +997,8 @@ const App: React.FC = () => {
               />
             </motion.div>
           ) : (
-            <motion.div 
+            /* CLASSROOM CHAT VIEW */
+            <motion.div
               key="classroom"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -976,7 +1006,8 @@ const App: React.FC = () => {
               transition={{ duration: 0.3 }}
               className="flex-1 flex flex-col relative w-full"
             >
-            
+
+              {/* SIMULATION PROGRESS BAR */}
               {simulationState.isActive && (
                 <div className="bg-slate-900 text-white px-4 py-2 flex items-center justify-between shadow-md z-10">
                   <div className="flex items-center gap-2">
@@ -986,8 +1017,8 @@ const App: React.FC = () => {
                   <div className="flex items-center gap-4 text-sm">
                     <span>Pregunta {simulationState.currentQuestion} de {simulationState.totalQuestions}</span>
                     <div className="w-24 bg-slate-700 rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-500" 
+                      <div
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-500"
                         style={{ width: `${(simulationState.currentQuestion / simulationState.totalQuestions) * 100}%` }}
                       ></div>
                     </div>
@@ -995,11 +1026,13 @@ const App: React.FC = () => {
                 </div>
               )}
 
+              {/* Messages List */}
               <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 scroll-smooth">
                 <div className="max-w-3xl mx-auto">
-                
+
+                  {/* MEDIA PLAYER (AUDIO/VIDEO) */}
                   {currentMaterial && currentMaterial.resourceUrl && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 p-5 rounded-2xl mb-8 shadow-md border border-slate-300 dark:border-slate-700 relative overflow-hidden"
@@ -1031,29 +1064,30 @@ const App: React.FC = () => {
                           </>
                         ) : currentMaterial.toolId === 'audio' ? (
                           <div className="bg-white dark:bg-slate-950 p-3 rounded-xl shadow-inner border border-slate-200 dark:border-slate-800">
-                            <audio 
-                              controls 
-                              className="w-full" 
+                            <audio
+                              controls
+                              className="w-full"
                               src={currentMaterial.resourceUrl}
                               onTimeUpdate={(e) => {
-                                // ✅ OPTIMIZACIÓN CRÍTICA: useRef evita bloqueos en gama baja
+                                // ✅ OPTIMIZACIÓN: useRef evita ejecutar lógica en cada milisegundo
                                 const currentTime = Math.floor(e.currentTarget.currentTime);
-                                
+
                                 if (currentTime !== lastCheckedSecond.current) {
                                   lastCheckedSecond.current = currentTime;
-                                  
+
                                   const dbaCode = currentMaterial.dbaCode;
                                   const points = INTERACTION_POINTS[dbaCode];
-                                  
+
                                   if (points) {
                                     const matchedPoint = points.find(p => p.timestamp === currentTime);
                                     if (matchedPoint) {
                                       const uniqueKey = `${dbaCode}_${currentTime}`;
                                       if (!hasTriggeredPoint[uniqueKey]) {
                                         setHasTriggeredPoint(prev => ({ ...prev, [uniqueKey]: true }));
-                                        
+
+                                        // Pausa automática (Ping-Pong Híbrido)
                                         e.currentTarget.pause();
-                                        
+
                                         const interactionMsg: Message = {
                                           id: generateUUID(),
                                           role: Role.MODEL,
@@ -1061,7 +1095,6 @@ const App: React.FC = () => {
                                           timestamp: Date.now(),
                                           track: 'student'
                                         };
-                                        
                                         setMessages(prev => [...prev, interactionMsg]);
                                       }
                                     }
@@ -1083,9 +1116,9 @@ const App: React.FC = () => {
                   )}
 
                   {messages.length === 0 && !isLoading && (
-                    <motion.div 
-                      initial={{ opacity: 0 }} 
-                      animate={{ opacity: 1 }} 
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
                       className="text-center text-slate-400 mt-10"
                     >
                       <p>Iniciando clase de {activeSubject}...</p>
@@ -1097,7 +1130,7 @@ const App: React.FC = () => {
                     ))}
                   </AnimatePresence>
                   {isLoading && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.9 }}
@@ -1114,6 +1147,7 @@ const App: React.FC = () => {
                 </div>
               </div>
 
+              {/* Sticky Input Area */}
               <div className="absolute bottom-0 left-0 w-full bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 p-3 md:p-4 z-10 transition-colors duration-300">
                 <div className="max-w-3xl mx-auto flex flex-col gap-1">
                   <div className="flex gap-2">
@@ -1123,9 +1157,9 @@ const App: React.FC = () => {
                       onChange={(e) => setInputText(e.target.value)}
                       onKeyPress={(e) => e.key === 'Enter' && handleSendMessage(inputText)}
                       placeholder={
-                        isOnline 
+                        isOnline
                           ? (simulationState.isActive ? "Responde A, B, C o D..." : `Pregunta algo al experto en ${activeSubject}...`)
-                          : "Modo Offline: Solo lectura"
+                          : "Modo Offline: Escribe tu pregunta..."
                       }
                       maxLength={500}
                       className="flex-1 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-slate-100 rounded-full px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm disabled:opacity-70 disabled:bg-slate-100 dark:disabled:bg-slate-800 placeholder-slate-400 dark:placeholder-slate-500"
@@ -1137,7 +1171,7 @@ const App: React.FC = () => {
                       className={`
                         p-3 rounded-full flex items-center justify-center transition-all shadow-md
                         ${isLoading || !inputText.trim() || inputText.length > 500
-                          ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed' 
+                          ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                           : 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-105 active:scale-95'}
                       `}
                     >
@@ -1163,11 +1197,13 @@ const App: React.FC = () => {
         </AnimatePresence>
       </div>
 
-      <AchievementPopup 
-        achievement={currentAchievement} 
-        onClose={() => setCurrentAchievement(null)} 
+      {/* RENDER ACHIEVEMENT POPUP */}
+      <AchievementPopup
+        achievement={currentAchievement}
+        onClose={() => setCurrentAchievement(null)}
       />
 
+      {/* RENDER OFFLINE MANAGER */}
       <AnimatePresence>
         {showOfflineManager && (
           <OfflineManager onClose={() => setShowOfflineManager(false)} />

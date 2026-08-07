@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userDoc = await getDocFromServer(doc(db, 'users', currentUser.uid));
             if (!userDoc.exists()) { 
                await setDoc(doc(db, 'users', currentUser.uid), {
-                 email: currentUser.email,
+                 email: currentUser.email || `anon_${currentUser.uid}@anonymous.com`,
                  name: currentUser.displayName || 'Estudiante',
                  role: 'student', // default
                  createdAt: serverTimestamp(),

@@ -3,8 +3,11 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
   Auth, 
-  signInAnonymously, 
+  signInAnonymously,
+  signInWithPopup,
+  GoogleAuthProvider,
   onAuthStateChanged,
+  signOut,
   User as FirebaseUser 
 } from 'firebase/auth';
 import { 
@@ -84,8 +87,24 @@ export const FirebaseAuthService = {
       const result = await signInAnonymously(auth);
       console.log("✅ Auth anónima exitosa:", result.user.uid);
       return result.user;
+    } catch (error: any) {
+      console.warn("⚠️ No se pudo iniciar sesión anónima (puede estar deshabilitado en Firebase):", error.message);
+      return null;
+    }
+  },
+
+  /**
+   * Inicia sesión con Google.
+   */
+  signInWithGoogle: async (): Promise<FirebaseUser | null> => {
+    if (!auth) return null;
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      console.log("✅ Auth con Google exitosa:", result.user.uid);
+      return result.user;
     } catch (error) {
-      console.error("❌ Error auth anónima:", error);
+      console.error("❌ Error auth con Google:", error);
       return null;
     }
   },
@@ -303,23 +322,21 @@ export const startAutoSync = (): void => {
       console.log("🌐 Conexión restaurada. Iniciando sincronización automática...");
       
       // Asegurar que hay un usuario autenticado
-      if (!FirebaseAuthService.getCurrentUser()) {
-        await FirebaseAuthService.signInAnonymous();
-      }
-      
-      await FirebaseSyncService.processSyncQueue();
-      
-      // Backup del perfil
-      const profile = await StorageService.getStudentProfile();
-      if (profile) {
-        await FirebaseSyncService.syncStudentProfile(profile);
+      if (FirebaseAuthService.getCurrentUser()) {
+        await FirebaseSyncService.processSyncQueue();
+        
+        // Backup del perfil
+        const profile = await StorageService.getStudentProfile();
+        if (profile) {
+          await FirebaseSyncService.syncStudentProfile(profile);
+        }
       }
     });
 
     // Intentar auth anónima al cargar (para tener UID desde el inicio)
-    if (!FirebaseAuthService.getCurrentUser()) {
-      FirebaseAuthService.signInAnonymous();
-    }
+    // if (!FirebaseAuthService.getCurrentUser()) {
+    //   FirebaseAuthService.signInAnonymous();
+    // }
   }
 };
 
@@ -414,6 +431,16 @@ export const FirebaseService = {
   reportingService: FirebaseReportingService,
   startAutoSync,
   enableFirestoreOffline
+};
+
+// Top level aliases for App.tsx
+export const signInSilently = FirebaseAuthService.signInAnonymous;
+export const signInWithGoogle = FirebaseAuthService.signInWithGoogle;
+export const observeAuth = FirebaseAuthService.onAuthChange;
+export const logout = async () => {
+  if (auth) {
+    await signOut(auth);
+  }
 };
 
 export default FirebaseService;
