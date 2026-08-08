@@ -10,6 +10,7 @@ interface CampusMapProps {
   userRole: UserRole; // ✅ NUEVO: Para segmentación Dual-Track
   onSwitchTrack?: () => void; // ✅ NUEVO: Navegación condicional a ConstructorLab
   onOpenRewards?: () => void;
+  onStartGeneralChat?: () => void;
 }
 
 const CampusMap: React.FC<CampusMapProps> = ({ 
@@ -18,7 +19,8 @@ const CampusMap: React.FC<CampusMapProps> = ({
   student, 
   userRole, 
   onSwitchTrack,
-  onOpenRewards
+  onOpenRewards,
+  onStartGeneralChat
 }) => {
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 p-4 md:p-8 animate-fade-in transition-colors duration-300">
@@ -260,10 +262,35 @@ const CampusMap: React.FC<CampusMapProps> = ({
 
         {/* ✅ ACTUALIZADO: Versión v3.0 Dual-Track */}
         <div className="text-center mt-12 mb-8">
-            <p className="text-xs text-slate-400">Eduglobal365 v3.0 • Campus Virtual Inteligente • Dual-Track Architecture</p>
+            <p className="text-xs text-slate-400">Eduglobal365 v6.0 • Campus Virtual Inteligente • Dual-Track Architecture</p>
         </div>
 
       </div>
+
+      {/* FLOATING ACTION BUTTON: Chat con Edú */}
+      <motion.button
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.5, type: 'spring' }}
+        onClick={() => {
+          if (onStartGeneralChat) {
+            onStartGeneralChat();
+          } else {
+            onSelectSubject("Tutor Edú");
+          }
+        }}
+        className="fixed bottom-6 right-6 md:bottom-8 md:right-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 md:p-5 shadow-2xl hover:shadow-blue-500/50 transition-all hover:scale-110 flex items-center justify-center group z-50 border-4 border-white dark:border-slate-800"
+        aria-label="Hablar con Tutor Edú"
+      >
+        <span className="text-3xl md:text-4xl">🤖</span>
+        <div className="absolute right-full mr-4 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm font-bold px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-xl pointer-events-none border border-slate-200 dark:border-slate-700 flex items-center gap-2">
+          <span>¿Necesitas hablar o desahogarte?</span>
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+          </span>
+        </div>
+      </motion.button>
     </div>
   );
 };

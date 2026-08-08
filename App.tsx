@@ -504,6 +504,53 @@ const App: React.FC = () => {
     await handleSendMessage(toolMessage);
   };
 
+  const handleStartGeneralChat = async () => {
+    const subjectContext = "Tutor Edú";
+    setActiveSubject(subjectContext);
+    
+    // Load existing history or start fresh
+    let history = StorageService.loadSubjectChat(subjectContext, userRole);
+    
+    if (history.length === 0) {
+      const initialUserMsg: Message = { 
+        id: generateUUID(), 
+        role: Role.USER, 
+        text: "¡Hola Edú! Quiero charlar un rato.", 
+        timestamp: Date.now(),
+        track: userRole
+      };
+      
+      setMessages([initialUserMsg]);
+      setCurrentView('CLASSROOM');
+      setIsSidebarOpen(false);
+      setIsLoading(true);
+      
+      try {
+        const response = await sendMessageToGemini([], initialUserMsg.text, subjectContext, userRole, userRole);
+        
+        const aiMsg: Message = { 
+          id: generateUUID(), 
+          role: Role.MODEL, 
+          text: response, 
+          timestamp: Date.now(),
+          track: userRole
+        };
+        
+        const newHistory = [initialUserMsg, aiMsg];
+        setMessages(newHistory);
+        StorageService.saveSubjectChat(subjectContext, newHistory, userRole);
+      } catch (error) {
+        console.error("Error starting general chat:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      setMessages(history);
+      setCurrentView('CLASSROOM');
+      setIsSidebarOpen(false);
+    }
+  };
+
   const handleEnterSubject = async (subject: string) => {
     if (subject === "Simulacro General ICFES") {
       setActiveSubject(subject);
@@ -543,8 +590,8 @@ const App: React.FC = () => {
   const handleStartModuleTool = async (module: SubjectModule, tool: NotebookTool) => {
     setCurrentView('CLASSROOM');
 
-    const materials = StorageService.getCourseMaterials(activeSubject || undefined, student.grade);
-    const material = materials.find(m =>
+    const materials = await StorageService.getCourseMaterials(activeSubject || undefined, student.grade);
+    const material = materials.find((m: CourseMaterial) =>
       m.subject === activeSubject &&
       m.moduleId === module.id &&
       m.toolId === tool.id
@@ -978,6 +1025,7 @@ const App: React.FC = () => {
                 userRole={userRole}
                 onSwitchTrack={() => setCurrentView('CONSTRUCTOR_LAB')}
                 onOpenRewards={() => setCurrentView('REWARDS')}
+                onStartGeneralChat={handleStartGeneralChat}
               />
             </motion.div>
           ) : currentView === 'SUBJECT_DASHBOARD' ? (

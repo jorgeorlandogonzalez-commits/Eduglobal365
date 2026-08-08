@@ -22,17 +22,9 @@ service cloud.firestore {
     }
 
     function isValidUser(data) {
-      return data.keys().hasAll(['email', 'role', 'name', 'createdAt', 'updatedAt']) &&
-             data.email is string && data.email.size() <= 200 &&
-             data.role is string && data.role in ['student', 'teacher', 'builder', 'admin'] &&
-             data.name is string && data.name.size() <= 100 &&
-             data.createdAt == request.time &&
-             data.updatedAt == request.time &&
-             data.grade is string && data.grade.size() <= 20 &&
-             data.location is string && data.location.size() <= 100 &&
-             data.level is number &&
-             data.points is number &&
-             data.streak is number;
+      return data.email is string &&
+             data.role is string &&
+             data.name is string;
     }
 
     function isValidUserUpdate(data) {

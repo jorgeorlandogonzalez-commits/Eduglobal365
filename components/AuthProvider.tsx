@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         } catch (e) {
-          console.error("Error creating user profile", e);
+          console.error("Error creating user profile:", e);
         }
       } else {
         setUser(null);
