@@ -42,30 +42,32 @@ const generateUUID = () => {
 // ============================================================================
 const App: React.FC = () => {
   // --- STATE: App Core ---
-  const [currentView, setCurrentView] = useState<AppView>(() => {
-    const saved = StorageService.loadAppState();
-    return saved?.currentView || 'LANDING';
-  });
-
-  const [activeSubject, setActiveSubject] = useState<string | null>(() => {
-    const saved = StorageService.loadAppState();
-    return saved?.activeSubject || null;
-  });
-
-  const [userRole, setUserRole] = useState<UserRole>(() => {
-    const saved = StorageService.loadAppState();
-    return saved?.userRole || 'student';
-  });
-
+  const [currentView, setCurrentView] = useState<AppView>('LANDING');
+  const [activeSubject, setActiveSubject] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>('student');
   const [showOfflineManager, setShowOfflineManager] = useState(false);
   const [dataSaverMode, setDataSaverMode] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
 
-  const [messages, setMessages] = useState<Message[]>(() => {
-    const saved = StorageService.loadAppState();
-    const subject = saved?.activeSubject;
-    const track = saved?.userRole || 'student';
-    return StorageService.loadSubjectChat(subject, track);
-  });
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        const saved = await StorageService.loadAppState();
+        if (saved) {
+          setCurrentView(saved.currentView);
+          setActiveSubject(saved.activeSubject);
+          setUserRole(saved.userRole);
+          if (saved.activeSubject) {
+            const msgs = await StorageService.loadSubjectChat(saved.activeSubject, saved.userRole);
+            setMessages(msgs || []);
+          }
+        }
+      } catch (e) {
+        console.error('Error loading app state', e);
+      }
+    };
+    initApp();
+  }, []);
 
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -436,11 +438,11 @@ const App: React.FC = () => {
     }
   };
 
-  const generatePDF = () => {
+  const generatePDF = async () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
-    const history = StorageService.loadSubjectChat(activeSubject || "General", userRole);
+    const history = await StorageService.loadSubjectChat(activeSubject || "General", userRole);
 
     printWindow.document.write(`
       <html>
@@ -491,7 +493,7 @@ const App: React.FC = () => {
 
     if (!activeSubject) {
       setActiveSubject(subjectContext);
-      const history = StorageService.loadSubjectChat(subjectContext, userRole);
+      const history = await StorageService.loadSubjectChat(subjectContext, userRole);
       setMessages(history);
     }
 
@@ -509,41 +511,30 @@ const App: React.FC = () => {
     setActiveSubject(subjectContext);
     
     // Load existing history or start fresh
-    let history = StorageService.loadSubjectChat(subjectContext, userRole);
+    let history = await StorageService.loadSubjectChat(subjectContext, userRole);
     
     if (history.length === 0) {
       const initialUserMsg: Message = { 
         id: generateUUID(), 
         role: Role.USER, 
-        text: "¡Hola Edú! Quiero charlar un rato.", 
+        text: "Hola", 
+        timestamp: Date.now() - 1000,
+        track: userRole
+      };
+      
+      const aiMsg: Message = { 
+        id: generateUUID(), 
+        role: Role.MODEL, 
+        text: "Hola, ¿como estas?. Edu esta aca para escucharte y ayudarte en lo q necesites", 
         timestamp: Date.now(),
         track: userRole
       };
       
-      setMessages([initialUserMsg]);
+      const newHistory = [initialUserMsg, aiMsg];
+      setMessages(newHistory);
       setCurrentView('CLASSROOM');
       setIsSidebarOpen(false);
-      setIsLoading(true);
-      
-      try {
-        const response = await sendMessageToGemini([], initialUserMsg.text, subjectContext, userRole, userRole);
-        
-        const aiMsg: Message = { 
-          id: generateUUID(), 
-          role: Role.MODEL, 
-          text: response, 
-          timestamp: Date.now(),
-          track: userRole
-        };
-        
-        const newHistory = [initialUserMsg, aiMsg];
-        setMessages(newHistory);
-        StorageService.saveSubjectChat(subjectContext, newHistory, userRole);
-      } catch (error) {
-        console.error("Error starting general chat:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      StorageService.saveSubjectChat(subjectContext, newHistory, userRole);
     } else {
       setMessages(history);
       setCurrentView('CLASSROOM');
@@ -598,7 +589,7 @@ const App: React.FC = () => {
     );
     setCurrentMaterial(material || null);
 
-    const subjectHistory = StorageService.loadSubjectChat(activeSubject || "General", userRole);
+    const subjectHistory = await StorageService.loadSubjectChat(activeSubject || "General", userRole);
     setMessages(subjectHistory);
 
     if (subjectHistory.length === 0) {
@@ -709,11 +700,11 @@ const App: React.FC = () => {
     return (
       <ConstructorLab
         onReturn={() => setCurrentView('LANDING')}
-        onStartProject={(project) => {
+        onStartProject={async (project) => {
           setActiveSubject(project.title);
           setCurrentView('CLASSROOM');
           setIsSidebarOpen(false);
-          const history = StorageService.loadSubjectChat(project.title, 'builder');
+          const history = await StorageService.loadSubjectChat(project.title, 'builder');
           setMessages(history);
           if (history.length === 0) {
             const entryText = `¡Hola Asistente! Voy a trabajar en el proyecto "${project.title}". Mi métrica de impacto es: ${project.impactMetric}. ¿Por dónde empezamos?`;
@@ -742,7 +733,7 @@ const App: React.FC = () => {
           <div>
             <h1 className="font-bold text-lg text-slate-800 dark:text-slate-100 leading-none">{APP_NAME}</h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {currentView === 'CAMPUS' ? 'Campus Virtual' : `Módulo: ${activeSubject || 'General'}`}
+              {currentView === 'CAMPUS' ? 'Campus Virtual' : activeSubject === 'Tutor Edú' ? 'Asistente Virtual' : `Módulo: ${activeSubject || 'General'}`}
             </p>
           </div>
         </div>
@@ -766,7 +757,7 @@ const App: React.FC = () => {
             </button>
           </div>
 
-          {currentView === 'CLASSROOM' && (
+          {currentView === 'CLASSROOM' && activeSubject !== 'Tutor Edú' && (
             <div className="flex gap-2">
               <button
                 onClick={handleSmartDownload}
@@ -966,24 +957,28 @@ const App: React.FC = () => {
             {currentView === 'CLASSROOM' && (
               <>
                 <div className="pt-4 pb-2">
-                  <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Silo: {activeSubject}</h3>
+                  <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    {activeSubject === 'Tutor Edú' ? 'Charla con Edú' : `Silo: ${activeSubject}`}
+                  </h3>
                 </div>
-                <button onClick={() => { setIsSidebarOpen(false); handleSmartDownload(); }} className="md:hidden w-full flex items-center gap-3 px-3 py-2 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg text-sm transition-colors text-left font-bold">
-                  <span className="text-lg">💾</span> Preparar para la Vereda
-                </button>
-
-                <button onClick={() => { setIsSidebarOpen(false); handleStartSimulation(); }} className="w-full flex items-center gap-3 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors text-left">
-                  <span className="text-lg">⏱️</span> Iniciar Simulacro
-                </button>
-                <button onClick={() => { setIsSidebarOpen(false); handleEnterTool("Generar Guía PDF"); }} className="w-full flex items-center gap-3 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors text-left">
-                  <span className="text-lg">📄</span> Generar PDF
-                </button>
-                <button onClick={() => { setIsSidebarOpen(false); handleEnterTool("Recursos Regionales"); }} className="w-full flex items-center gap-3 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors text-left">
-                  <span className="text-lg">🌱</span> Recursos de mi Región
-                </button>
+                {activeSubject !== 'Tutor Edú' && (
+                  <>
+                    <button onClick={() => { setIsSidebarOpen(false); handleSmartDownload(); }} className="md:hidden w-full flex items-center gap-3 px-3 py-2 text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/30 rounded-lg text-sm transition-colors text-left font-bold">
+                      <span className="text-lg">💾</span> Preparar para la Vereda
+                    </button>
+                    <button onClick={() => { setIsSidebarOpen(false); handleStartSimulation(); }} className="w-full flex items-center gap-3 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors text-left">
+                      <span className="text-lg">⏱️</span> Iniciar Simulacro
+                    </button>
+                    <button onClick={() => { setIsSidebarOpen(false); handleEnterTool("Generar Guía PDF"); }} className="w-full flex items-center gap-3 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors text-left">
+                      <span className="text-lg">📄</span> Generar PDF
+                    </button>
+                    <button onClick={() => { setIsSidebarOpen(false); handleEnterTool("Recursos Regionales"); }} className="w-full flex items-center gap-3 px-3 py-2 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg text-sm transition-colors text-left">
+                      <span className="text-lg">🌱</span> Recursos de mi Región
+                    </button>
+                  </>
+                )}
               </>
             )}
-
             <div className="pt-4 pb-2">
               <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Acceso Rápido</h3>
             </div>

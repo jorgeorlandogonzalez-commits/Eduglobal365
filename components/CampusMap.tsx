@@ -284,7 +284,7 @@ const CampusMap: React.FC<CampusMapProps> = ({
       >
         <span className="text-3xl md:text-4xl">🤖</span>
         <div className="absolute right-full mr-4 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-sm font-bold px-4 py-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap shadow-xl pointer-events-none border border-slate-200 dark:border-slate-700 flex items-center gap-2">
-          <span>¿Necesitas hablar o desahogarte?</span>
+          <span>Hola, ¿como estas?. Edu esta aca para escucharte y ayudarte en lo q necesites</span>
           <span className="relative flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>

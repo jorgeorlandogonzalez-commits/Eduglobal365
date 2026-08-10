@@ -30,17 +30,29 @@ import firebaseConfig from '../firebase-applet-config.json';
 import { StorageService } from '../services/storageService';
 import { SyncQueueItem, StudentProfile, UserRole } from './types';
 
+
 // ============================================================================
 // 🔥 INICIALIZACIÓN FIREBASE
 // ============================================================================
 
-const isFirebaseConfigured = firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== "";
+// Soporte para variables de entorno (VITE_FIREBASE_*) o fallback al JSON
+const config = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
+  firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || firebaseConfig.firestoreDatabaseId || "(default)"
+};
 
-const app: FirebaseApp | null = isFirebaseConfigured ? initializeApp(firebaseConfig) : null;
+const isFirebaseConfigured = config && config.apiKey && config.apiKey !== "";
+const app: FirebaseApp | null = isFirebaseConfigured ? initializeApp(config) : null;
 
 // Initialize Firebase services
 export const auth: Auth | null = isFirebaseConfigured ? getAuth(app as FirebaseApp) : null;
-export const db: Firestore | null = isFirebaseConfigured ? getFirestore(app as FirebaseApp, firebaseConfig.firestoreDatabaseId) : null;
+export const db: Firestore | null = isFirebaseConfigured ? getFirestore(app as FirebaseApp, config.firestoreDatabaseId) : null;
+
 
 // ============================================================================
 // 🆕 CONFIGURACIÓN OFFLINE-FIRST: Firestore como ESPEJO, no fuente de verdad
