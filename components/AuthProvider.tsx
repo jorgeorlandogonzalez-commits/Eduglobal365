@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { auth, db } from '../config/firebase';
-import { doc, getDocFromServer, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
@@ -34,8 +34,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Ensure user document exists
         try {
           if (db) {
-            const userDoc = await getDocFromServer(doc(db, 'users', currentUser.uid));
-            if (!userDoc.exists()) { 
+            let userDoc;
+            try {
+              userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+            } catch (err: any) {
+              console.warn("⚠️ No se pudo obtener el perfil de usuario (posiblemente offline).");
+            }
+            if (userDoc && !userDoc.exists()) { 
                await setDoc(doc(db, 'users', currentUser.uid), {
                  email: currentUser.email || `anon_${currentUser.uid}@anonymous.com`,
                  name: currentUser.displayName || 'Estudiante',
