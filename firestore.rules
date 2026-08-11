@@ -4,109 +4,40 @@ service cloud.firestore {
     match /{document=**} {
       allow read, write: if false;
     }
-
+    
     function isSignedIn() {
       return request.auth != null;
     }
-
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function incoming() {
-      return request.resource.data;
-    }
-
-    function existing() {
-      return resource.data;
-    }
-
-    function isValidUser(data) {
-      return data.email is string &&
-             data.role is string &&
-             data.name is string;
-    }
-
-    function isValidUserUpdate(data) {
-      return data.email is string && data.email.size() <= 200 &&
-             data.role is string && data.role in ['student', 'teacher', 'builder', 'admin'] &&
-             data.name is string && data.name.size() <= 100 &&
-             data.updatedAt == request.time &&
-             data.grade is string && data.grade.size() <= 20 &&
-             data.location is string && data.location.size() <= 100 &&
-             data.level is number &&
-             data.points is number &&
-             data.streak is number;
-    }
-
-    function isValidMessage(data) {
-      return data.keys().hasAll(['role', 'text', 'timestamp']) &&
-             data.role is string && data.role in ['user', 'model'] &&
-             data.text is string && data.text.size() <= 10000 &&
-             data.timestamp is number &&
-             (!('track' in data) || (data.track is string && data.track in ['student', 'teacher', 'builder', 'admin'])) &&
-             (!('subject' in data) || (data.subject is string && data.subject.size() <= 100));
-    }
-
-    function isValidBuilderProject(data) {
-       return data.keys().hasAll(['title', 'description', 'status', 'authorId', 'createdAt', 'updatedAt']) &&
-              data.title is string && data.title.size() <= 100 &&
-              data.description is string && data.description.size() <= 5000 &&
-              data.status is string && data.status in ['IDEA', 'IN_PROGRESS', 'COMPLETED'] &&
-              data.authorId == request.auth.uid &&
-              data.createdAt == request.time &&
-              data.updatedAt == request.time;
-    }
     
-    function isValidBuilderProjectUpdate(data) {
-       return data.title is string && data.title.size() <= 100 &&
-              data.description is string && data.description.size() <= 5000 &&
-              data.status is string && data.status in ['IDEA', 'IN_PROGRESS', 'COMPLETED'] &&
-              data.authorId == existing().authorId &&
-              data.updatedAt == request.time;
-    }
-
-    function isValidCourseMaterial(data) {
-      return data.keys().hasAll(['grade', 'subject', 'topic', 'textContent', 'authorId', 'timestamp']) &&
-             data.grade is string && data.grade.size() <= 20 &&
-             data.subject is string && data.subject.size() <= 100 &&
-             data.topic is string && data.topic.size() <= 100 &&
-             data.textContent is string && data.textContent.size() <= 50000 &&
-             data.authorId == request.auth.uid &&
-             data.timestamp is number &&
-             (!('hasAudio' in data) || data.hasAudio is bool) &&
-             (!('moduleId' in data) || (data.moduleId is string && data.moduleId.size() <= 100)) &&
-             (!('toolId' in data) || (data.toolId is string && data.toolId.size() <= 100)) &&
-             (!('resourceUrl' in data) || (data.resourceUrl is string && data.resourceUrl.size() <= 1000)) &&
-             (!('dbaCode' in data) || (data.dbaCode is string && data.dbaCode.size() <= 100));
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     match /users/{userId} {
-      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
-      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && isValidUser(incoming());
-      allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && isValidUserUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'grade', 'location', 'level', 'points', 'streak', 'updatedAt']);
-      allow delete: if false;
-
+      allow read, write: if isOwner(userId);
+      
       match /messages/{messageId} {
-        allow read: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
-        allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && isValidMessage(incoming());
-        allow delete: if false;
-        allow update: if false;
+        allow read, write: if isOwner(userId);
       }
-
       match /projects/{projectId} {
-        allow read: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
-        allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && isValidBuilderProject(incoming());
-        allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId && isValidBuilderProjectUpdate(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'status', 'techStack', 'impactMetric', 'updatedAt']);
-        allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
+      }
+      match /progress/{progressId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /materials/{materialId} {
+        allow read, write: if isOwner(userId);
+      }
+      match /syncQueue/{syncId} {
+        allow read, write: if isOwner(userId);
       }
     }
-
+    
     match /materials/{materialId} {
-      allow read: if isSignedIn(); // All authenticated users can read course materials
-      allow create: if isSignedIn() && isValidCourseMaterial(incoming());
-      allow update: if false; // materials are immutable for now
-      allow delete: if isSignedIn() && existing().authorId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
+      allow update: if isSignedIn() && resource.data.authorId == request.auth.uid;
+      allow delete: if isSignedIn() && resource.data.authorId == request.auth.uid;
     }
   }
 }
