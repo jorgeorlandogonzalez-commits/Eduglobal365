@@ -424,7 +424,7 @@ const App: React.FC = () => {
 
   const handleSmartDownload = () => {
     if (!activeSubject) return;
-    const success = DownloadService.generateOfflinePackage(activeSubject, messages, userRole);
+    const success = DownloadService.generateOfflinePackage(activeSubject, userRole);
     if (success) {
       console.log("✅ Paquete 'Preparar para la Vereda' descargado correctamente.");
       const systemMsg: Message = {
