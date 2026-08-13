@@ -56,3 +56,10 @@ Para asegurar que todo el motor funciona correctamente, te sugerimos seguir este
 - **PWA**: Instalación como app en dispositivos móviles soportada (Manifest e iconos listos en `vite.config.ts` y `/public`).
 
 ¡A disfrutar de la revolución educativa!
+
+## 💳 Modelo Comercial (SAS BIC)
+| Plan | Precio (COP, IVA incl.) | Incluye |
+|------|--------------------------|---------|
+| Mensual | $49.900/mes | Bachillerato 8°–11°, ICFES, Idiomas, modo offline, IA local |
+| Anual | $499.000/año | Todo lo anterior + 2 meses gratis (ahorra $99.800) |
+| Solidaridad | $0 | Jóvenes afectados por la emergencia, vía subsidio cruzado |

@@ -7,10 +7,10 @@ import {
 } from './config/types';
 import { APP_NAME, SIMULATION_TRIGGER_MESSAGE } from './config/constants';
 import { INTERACTION_POINTS } from './config/dbaSeedContent';
-import { sendMessageToGemini } from './services/geminiService';
+import { sendMessageToGemini, checkRealConnection } from './services/geminiService';
 import { StorageService } from './services/storageService';
 import { DownloadService } from './services/downloadService';
-import { webLLMInstance as WebLLMService } from './services/webLLMService';
+import { webLLMInstance } from './services/webLLMService';
 import { signInSilently, signInWithGoogle, logout, observeAuth } from './config/firebase';
 import type { User } from 'firebase/auth';
 import ChatBubble from './components/ChatBubble';
@@ -85,6 +85,7 @@ const App: React.FC = () => {
 
   // --- STATE: Optimización audio Ping-Pong (useRef evita re-renders masivos) ---
   const lastCheckedSecond = useRef<number>(0);
+  const deferredPrompt = useRef<any>(null);
   const [hasTriggeredPoint, setHasTriggeredPoint] = useState<Record<string, boolean>>({});
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -292,40 +293,23 @@ const App: React.FC = () => {
   // 🆕 HANDLER: Activar WebLLM REAL (reemplaza simulador con setInterval)
   // ==========================================================================
   const handleActivateGemmaLocal = async () => {
-    if (gemmaReady) {
-      // Desactivar modo local y liberar memoria GPU
-      setForceGemmaLocal(false);
-      setGemmaReady(false);
-      (window as any).__forceLocalAI = false;
-      try {
-        await WebLLMService.unload();
-      } catch (e) {
-        console.warn('Error unloading WebLLM:', e);
-      }
-      return;
-    }
-
-    if (gemmaModelDownloading) return;
-
-    setGemmaModelDownloading(true);
-    setGemmaProgress(0);
-
-    try {
-      await WebLLMService.init((progress) => {
-        setGemmaProgress(Math.round(progress * 100));
-      });
-      setGemmaReady(true);
-      setForceGemmaLocal(true);
-      (window as any).__forceLocalAI = true;
-    } catch (e) {
-      console.warn('Gemma Local Fallback:', e);
-      alert('Tu navegador no soporta WebGPU o no pudo cargar el modelo. Usaremos el modo estático offline.');
-      setForceGemmaLocal(false);
-      setGemmaReady(false);
-    } finally {
-      setGemmaModelDownloading(false);
-    }
-  };
+  if (gemmaReady) {
+    setForceGemmaLocal(false); setGemmaReady(false);
+    await webLLMInstance.unload();
+    return;
+  }
+  if (gemmaModelDownloading) return;
+  setGemmaModelDownloading(true); setGemmaProgress(0);
+  try {
+    await webLLMInstance.init((p) => setGemmaProgress(Math.round(p * 100)));
+    setGemmaReady(true); setForceGemmaLocal(true);
+  } catch (e) {
+    console.warn('Gemma Local no disponible:', e);
+    alert('📱 Tu dispositivo no soporta WebGPU. Quedas en Modo Ahorro Máximo: guías descargables, audios y quizzes siguen funcionando.');
+  } finally {
+    setGemmaModelDownloading(false);
+  }
+};
 
   // ==========================================================================
   // HANDLER: Send Message (Online → Gemini | Offline/Forzado → WebLLM)
@@ -333,63 +317,24 @@ const App: React.FC = () => {
   const handleSendMessage = async (text: string, isSystemTrigger = false) => {
     if ((!text.trim() && !isSystemTrigger) || isLoading || text.length > 500) return;
 
-    const isGemmaMode = !isOnline || forceGemmaLocal;
+    const hasNet = await checkRealConnection();
+    const isGemmaMode = forceGemmaLocal || !hasNet;
 
-    if (isGemmaMode) {
-      if (!isSystemTrigger) {
-        const userMsg: Message = {
-          id: generateUUID(),
-          role: Role.USER,
-          text: text,
-          timestamp: Date.now(),
-          track: userRole
-        };
-        setMessages(prev => [...prev, userMsg]);
-        setInputText('');
-      }
-      setIsLoading(true);
-
-      try {
-        const aiResponseText = await sendMessageToGemini(messages, text, activeSubject, userRole, userRole);
-        const aiMsg: Message = {
-          id: generateUUID(),
-          role: Role.MODEL,
-          text: aiResponseText,
-          timestamp: Date.now(),
-          track: userRole
-        };
-        setMessages(prev => [...prev, aiMsg]);
-      } catch (error) {
-        console.error("Error en modo offline:", error);
-        const errorMsg: Message = {
-          id: generateUUID(),
-          role: Role.MODEL,
-          text: "⚠️ Error en el motor local. Intenta recargar o conecta internet.",
-          timestamp: Date.now(),
-          track: userRole
-        };
-        setMessages(prev => [...prev, errorMsg]);
-      } finally {
-        setIsLoading(false);
-      }
-      return;
+    if (!isSystemTrigger) {
+      const userMsg: Message = {
+        id: generateUUID(),
+        role: Role.USER,
+        text: text,
+        timestamp: Date.now(),
+        track: userRole
+      };
+      setMessages(prev => [...prev, userMsg]);
+      setInputText('');
     }
-
-    // MODO ONLINE
-    const userMsg: Message = {
-      id: generateUUID(),
-      role: Role.USER,
-      text: text,
-      timestamp: Date.now(),
-      track: userRole
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    setInputText('');
     setIsLoading(true);
 
     try {
-      const aiResponseText = await sendMessageToGemini(messages, text, activeSubject, userRole, userRole);
+      const aiResponseText = await sendMessageToGemini(messages, text, activeSubject, userRole, userRole, forceGemmaLocal);
       const aiMsg: Message = {
         id: generateUUID(),
         role: Role.MODEL,
@@ -399,11 +344,11 @@ const App: React.FC = () => {
       };
       setMessages(prev => [...prev, aiMsg]);
     } catch (error) {
-      console.error("Error enviando mensaje:", error);
+      console.error("Error en AI:", error);
       const errorMsg: Message = {
         id: generateUUID(),
         role: Role.MODEL,
-        text: "⚠️ Error de conexión. Intenta activar el modo local (🤖) o revisa tu internet.",
+        text: "⚠️ Error en el asistente. Intenta recargar.",
         timestamp: Date.now(),
         track: userRole
       };
@@ -554,7 +499,7 @@ const App: React.FC = () => {
       setIsLoading(true);
 
       try {
-        const response = await sendMessageToGemini([], SIMULATION_TRIGGER_MESSAGE, "SIMULACRO ICFES", userRole, userRole);
+        const response = await sendMessageToGemini([], SIMULATION_TRIGGER_MESSAGE, "SIMULACRO ICFES", userRole, userRole, forceGemmaLocal);
         const aiMsg: Message = {
           id: generateUUID(),
           role: Role.MODEL,
@@ -607,7 +552,7 @@ const App: React.FC = () => {
       setMessages([initialUserMsg]);
 
       try {
-        const response = await sendMessageToGemini([], entryText, activeSubject, userRole, userRole);
+        const response = await sendMessageToGemini([], entryText, activeSubject, userRole, userRole, forceGemmaLocal);
         const aiMsg: Message = {
           id: generateUUID(),
           role: Role.MODEL,
@@ -647,6 +592,58 @@ const App: React.FC = () => {
     setActiveSubject(null);
     setMessages([]);
   };
+
+  useEffect(() => {
+    const onInstallPwa = (e: Event) => { e.preventDefault(); deferredPrompt.current = e; };
+    window.addEventListener('beforeinstallprompt', onInstallPwa);
+
+    const hInstall = () => {
+      if (deferredPrompt.current) { deferredPrompt.current.prompt(); deferredPrompt.current = null; }
+      else alert('📲 Usa el menú del navegador → "Agregar a pantalla de inicio" / "Instalar app".');
+    };
+    const hSync = async () => {
+      try {
+        const mod: any = await import('./config/firebase');
+        if (mod.FirebaseSyncService) {
+          const r = await mod.FirebaseSyncService.processSyncQueue();
+          alert(`☁️ Sincronización completada: ${r.success} elementos respaldados.`);
+        } else alert('☁️ Sync en nube disponible al activar FirebaseSyncService.');
+      } catch { alert('☁️ No se pudo sincronizar ahora. Intenta al recuperar conexión.'); }
+    };
+    const hExport = () => {
+      const payload = { app: 'eduglobal365', version: '6.0', exportedAt: Date.now(), subject: activeSubject, role: userRole, messages, profile: student };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `eduglobal365_progreso_${(activeSubject || 'general').replace(/\s+/g, '_')}.json`;
+      a.click(); URL.revokeObjectURL(url);
+    };
+    const hDownload = () => handleSmartDownload();
+    const hClean = async () => {
+      try {
+        const mod: any = await import('./services/downloadService');
+        if (mod.DownloadService.cleanupExpiredPackages) { await mod.DownloadService.cleanupExpiredPackages(); alert('🧹 Paquetes antiguos limpiados.'); }
+        else alert('🧹 Limpieza disponible próximamente.');
+      } catch { alert('🧹 No se pudo limpiar el caché ahora.'); }
+    };
+    const hAdopt = () => { setUserRole('builder'); setCurrentView('CONSTRUCTOR_LAB'); };
+
+    window.addEventListener('eduglobal:install-pwa', hInstall);
+    window.addEventListener('eduglobal:sync-cloud', hSync);
+    window.addEventListener('eduglobal:export-json', hExport);
+    window.addEventListener('eduglobal:download-offline', hDownload);
+    window.addEventListener('eduglobal:clean-cache', hClean);
+    window.addEventListener('eduglobal:adopt-module', hAdopt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onInstallPwa);
+      window.removeEventListener('eduglobal:install-pwa', hInstall);
+      window.removeEventListener('eduglobal:sync-cloud', hSync);
+      window.removeEventListener('eduglobal:export-json', hExport);
+      window.removeEventListener('eduglobal:download-offline', hDownload);
+      window.removeEventListener('eduglobal:clean-cache', hClean);
+      window.removeEventListener('eduglobal:adopt-module', hAdopt);
+    };
+  }, [messages, activeSubject, userRole, student]);
 
   // ==========================================================================
   // RENDER: LANDING / TEACHER / REWARDS / CONSTRUCTOR

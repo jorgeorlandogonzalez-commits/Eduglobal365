@@ -45,3 +45,8 @@ El sistema aísla y adapta los flujos de usuario (Roles):
 4. Respuesta recibida -> Se guarda en `IndexedDB` (`storageService.saveMessage`).
 5. Se encola un job de sync (`storageService.addToSyncQueue`).
 6. Si hay red, `startAutoSync` procesa la cola y refleja el mensaje en Firestore.
+
+## Modelo Comercial SAS BIC
+- Precio único estudiante: COP $49.900/mes o COP $499.000/año (2 meses gratis).
+- Subsidio cruzado: el ingreso de planes pagos financia el Plan Solidaridad (gratuito para afectados por la emergencia).
+- El Tutor Edú conoce los precios oficiales (ver <MODELO_COMERCIAL> en el System Instruction v5.3) y nunca inventa descuentos.

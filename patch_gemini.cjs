@@ -16,7 +16,7 @@ const findText = `export const sendMessageToGemmaOffline = async (
   const normSubject = subjectContext || "General";
   const materials = await FirestoreService.getCourseMaterials(normSubject);
   const matchedMaterial = materials[0];
-  const prefix = \`[💡 GEMMA 4 LOCAL ENGINE - INFERENCIA CLIENT-SIDE WebGPU]\`;`;
+  const prefix = \`[💡 GEMMA 2B LOCAL ENGINE - INFERENCIA CLIENT-SIDE WebGPU]\`;`;
 
 const replaceText = `export const sendMessageToGemmaOffline = async (
   chatHistory: Message[],
@@ -36,7 +36,7 @@ const replaceText = `export const sendMessageToGemmaOffline = async (
 
   const materials = await FirestoreService.getCourseMaterials(normSubject);
   const matchedMaterial = materials[0];
-  const prefix = \`[💡 GEMMA 4 LOCAL ENGINE - INFERENCIA CLIENT-SIDE WebGPU]\`;`;
+  const prefix = \`[💡 GEMMA 2B LOCAL ENGINE - INFERENCIA CLIENT-SIDE WebGPU]\`;`;
 
 if (code.includes(findText)) {
   code = code.replace(findText, replaceText);

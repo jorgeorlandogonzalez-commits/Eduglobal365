@@ -1,0 +1,84 @@
+const fs = require('fs');
+
+const code = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Términos y Condiciones - EduGlobal365</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #1e293b; }
+    h1 { color: #1e3a8a; border-bottom: 3px solid #1e3a8a; padding-bottom: 10px; }
+    h2 { color: #1e40af; margin-top: 30px; }
+    .alert { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 20px 0; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; }
+    ul { padding-left: 20px; } li { margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+    th { background-color: #f8fafc; }
+  </style>
+</head>
+<body>
+  <h1>🇨🇴 Términos y Condiciones - EduGlobal365</h1>
+  <p><strong>Versión:</strong> 2.0 | <strong>Vigencia:</strong> 2026</p>
+  <div class="alert"><strong>Contexto humanitario:</strong> Plataforma lanzada como respuesta a la emergencia por terremoto en Colombia, ofreciendo acceso educativo gratuito a jóvenes desescolarizados.</div>
+  
+  <h2>1. Objeto</h2>
+  <p>EduGlobal365 es una plataforma educativa gratuita constituida como <strong>SAS BIC</strong> (Sociedad por Acciones Simplificada de Beneficio e Interés Colectivo) para democratizar educación de élite en zonas rurales y urbanas de Colombia.</p>
+  
+  <h2>2. Alineación Curricular</h2>
+  <p>Contenido alineado a los <strong>Derechos Básicos de Aprendizaje (DBA)</strong> del Ministerio de Educación Nacional, usados bajo principios de uso educativo legítimo.</p>
+  
+  <h2>3. Política de Tratamiento de Datos (Ley 1581 de 2012 / Decreto 1377 de 2013)</h2>
+  <ul>
+    <li><strong>Responsable:</strong> EduGlobal365 SAS BIC.</li>
+    <li><strong>Finalidad:</strong> Servicio educativo, personalización del aprendizaje, reportes anónimos de impacto.</li>
+    <li><strong>Datos recolectados:</strong> Nombre (seudónimo permitido), grado, región, progreso académico.</li>
+    <li><strong>Datos NO recolectados:</strong> Dirección, documento, teléfono, email, biométricos.</li>
+    <li><strong>Derechos ARCO:</strong> Acceso, rectificación, cancelación y oposición desde "Reiniciar Campus". Contacto: privacidad@eduglobal365.co</li>
+  </ul>
+  
+  <h2>4. Protección de Menores (Ley 1098 de 2006)</h2>
+  <p>Menores de 14 años requieren autorización de padre, madre o acudiente. No se recolectan datos sensibles de menores ni se permiten interacciones con terceros.</p>
+  
+  <h2>5. Almacenamiento Local y Cookies</h2>
+  <p>Se usa IndexedDB y localStorage para funcionamiento Offline-First. No se usan cookies publicitarias ni de seguimiento.</p>
+  
+  <h2>6. Inteligencia Artificial</h2>
+  <p>El "Tutor Edú" es un asistente pedagógico con método socrático. <strong>No reemplaza</strong> docentes, médicos, abogados ni profesionales de salud mental. En crisis: líneas <strong>106</strong>, <strong>123</strong>, <strong>192</strong>.</p>
+  
+  <h2>7. Limitación de Responsabilidad</h2>
+  <p>La plataforma se ofrece "tal como está". No se garantizan resultados académicos específicos.</p>
+  
+  <h2>8. Propiedad Intelectual</h2>
+  <p>Software y metodología: propiedad de EduGlobal365 SAS BIC. Los DBA son propiedad del MEN.</p>
+  
+  <h2>9. Modificaciones</h2>
+  <p>Los términos pueden actualizarse con aviso previo en la plataforma.</p>
+  
+  <h2>10. Ley Aplicable</h2>
+  <p>Leyes de la República de Colombia.</p>
+  
+  <h2>11. Planes y Precios (COP, IVA incluido)</h2>
+  <table>
+    <thead>
+      <tr><th>Plan</th><th>Precio</th><th>Incluye</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Mensual</td><td>$49.900/mes</td><td>Bachillerato 8°–11°, ICFES, Idiomas, modo offline, IA local</td></tr>
+      <tr><td>Anual</td><td>$499.000/año</td><td>Todo lo anterior + 2 meses gratis (ahorro de $99.800)</td></tr>
+      <tr><td>Solidaridad</td><td>$0</td><td>Jóvenes afectados por la emergencia, vía subsidio cruzado</td></tr>
+    </tbody>
+  </table>
+
+  <h2>12. Suscripción y Pagos</h2>
+  <p>El cobro se realiza vía pasarela de pagos de la plataforma con renovación automática. Puede cancelar en cualquier momento manteniendo el acceso hasta el fin del periodo pagado. Los reembolsos se rigen por la Ley 1480 de 2011 (Estatuto del Consumidor).</p>
+
+  <h2>13. Plan Solidaridad y Subsidio Cruzado</h2>
+  <p>El ingreso de los planes pagos financia directamente las becas del Plan Solidaridad para usuarios afectados por la emergencia, siendo esto un pilar coherente con nuestro objeto SAS BIC.</p>
+
+  <div class="footer"><p><strong>EduGlobal365 SAS BIC</strong> — "Educación de élite para todos los colombianos" | legal@eduglobal365.co | Versión 2.0 - 2026</p></div>
+</body>
+</html>`;
+
+fs.writeFileSync('public/legal/terms.html', code);

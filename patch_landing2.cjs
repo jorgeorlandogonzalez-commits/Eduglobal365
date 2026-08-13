@@ -1,4 +1,6 @@
-// src/components/LandingPage.tsx
+const fs = require('fs');
+
+const code = `// src/components/LandingPage.tsx
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 
@@ -14,7 +16,7 @@ interface LandingPageProps {
 }
 
 const PRICING = { monthly: 49900, annual: 499000 };
-const formatCOP = (v: number) => `$${v.toLocaleString('es-CO')}`;
+const formatCOP = (v: number) => \`$\${v.toLocaleString('es-CO')}\`;
 
 const LandingPage: React.FC<LandingPageProps> = ({ onStart, onTeacherAccess, onConstructorAccess, studentName, studentGrade, onGradeChange }) => {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -233,7 +235,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart, onTeacherAccess, onC
           <button
             onClick={handleStart}
             disabled={!canProceed}
-            className={`w-full mt-6 rounded-full py-4 font-black text-lg transition-all ${canProceed ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/50 hover:scale-[1.02]' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}`}
+            className={\`w-full mt-6 rounded-full py-4 font-black text-lg transition-all \${canProceed ? 'bg-blue-600 hover:bg-blue-500 shadow-lg shadow-blue-900/50 hover:scale-[1.02]' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}\`}
           >
             Entrar al Campus →
           </button>
@@ -256,3 +258,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onStart, onTeacherAccess, onC
 };
 
 export default LandingPage;
+`;
+
+fs.writeFileSync('components/LandingPage.tsx', code);

@@ -33,7 +33,7 @@ export const sendMessageToGemmaOffline = async (
   // Fallback to static text if WebLLM is not loaded yet
   const materials = await FirestoreService.getCourseMaterials(normSubject);
   const matchedMaterial = materials[0];
-  const prefix = "[💡 GEMMA 4 LOCAL ENGINE - INFERENCIA CLIENT-SIDE WebGPU]";
+  const prefix = "[💡 GEMMA 2B LOCAL ENGINE - INFERENCIA CLIENT-SIDE WebGPU]";
 
   if (newMessage.toUpperCase().includes("SIMULACRO") || newMessage.toUpperCase().includes("SISTEMA") || chatHistory.some(h => h.text.includes("SIMULACRO"))) {
     return prefix + " ¡Hola! Iniciamos el Simulacro de Entrenamiento en modo Offline.\\nPregunta 1 de 5:\\nSi en una vereda el cultivo de café produce 120 bultos y se vende el 40% a la cooperativa local, ¿cuántos bultos le quedan al agricultor?\\nA) 48 bultos\\nB) 72 bultos\\nC) 60 bultos\\nD) 80 bultos\\nPor favor, escribe solo la opción correcta (A, B, C o D). ¡Pilas con el análisis!";
