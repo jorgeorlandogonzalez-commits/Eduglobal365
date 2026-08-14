@@ -63,3 +63,6 @@ Para asegurar que todo el motor funciona correctamente, te sugerimos seguir este
 | Mensual | $49.900/mes | Bachillerato 8°–11°, ICFES, Idiomas, modo offline, IA local |
 | Anual | $499.000/año | Todo lo anterior + 2 meses gratis (ahorra $99.800) |
 | Solidaridad | $0 | Jóvenes afectados por la emergencia, vía subsidio cruzado |
+
+## Nota de Marca
+- No usar nombres de modelos de IA en capturas, demos públicas o marketing. Usar "IA local".

@@ -666,6 +666,7 @@ const App: React.FC = () => {
         studentName={student.name}
         studentGrade={student.grade as Grade}
         onGradeChange={(grade) => setStudent(prev => ({ ...prev, grade }))}
+        onProfileUpdate={(name, grade) => setStudent(prev => ({ ...prev, name, grade }))}
       />
     );
   }
@@ -787,14 +788,14 @@ const App: React.FC = () => {
                   ? 'bg-purple-600 text-white border-purple-700 shadow-sm'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:border-purple-400 hover:text-purple-600'}
             `}
-            title={gemmaReady ? "Operando en Gemma Local (Inferencia local activa)" : "Activar Inferencia Offline con Gemma 2B"}
+            title={gemmaReady ? "Operando en IA Local (inferencia en tu dispositivo)" : "Activar inferencia offline en tu dispositivo"}
           >
             <span className="text-[11px]">🤖</span>
             {gemmaModelDownloading
-              ? `Descargando Gemma... ${gemmaProgress}%`
+              ? `Activando IA Local... ${gemmaProgress}%`
               : gemmaReady
-                ? "Gemma Local Activo"
-                : "Activar Gemma Local"
+                ? "IA Local Activa"
+                : "Activar IA Local"
             }
           </button>
 

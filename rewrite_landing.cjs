@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
-export type Grade = '8°' | '9°' | '10°' | '11°';
+const fs = require('fs');
+
+const content = `import React, { useState } from 'react';
+import { Grade } from '../types';
+import { PRICING } from '../config/constants';
 import { motion } from 'motion/react';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '../config/firebase';
@@ -33,7 +36,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
   const [acceptedData, setAcceptedData] = useState(false);
   const [isMinor, setIsMinor] = useState(false);
   const [hasAdultConsent, setHasAdultConsent] = useState(false);
-  const PRICING = { monthly: 49900, annual: 499000 };
 
   const canProceed = acceptedTerms && acceptedData && (!isMinor || (isMinor && hasAdultConsent));
 
@@ -57,11 +59,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
       }
       setGmailUser(email);
       if (cred.user.displayName) setLocalName(cred.user.displayName.split(' ')[0]);
-      if (localStorage.getItem('eduglobal_legal_accepted') === 'true') {
-        onStart();
-      } else {
-        setShowStudentOnboarding(true);
-      }
+      setShowStudentOnboarding(true);
     } catch (e) {
       alert('Necesitas iniciar sesión con Gmail para entrar como estudiante.');
     }
@@ -295,3 +293,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
   );
 };
 export default LandingPage;
+`
+fs.writeFileSync('components/LandingPage.tsx', content);
+console.log('Landing page rewritten');

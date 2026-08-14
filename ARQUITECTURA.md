@@ -50,3 +50,6 @@ El sistema aísla y adapta los flujos de usuario (Roles):
 - Precio único estudiante: COP $49.900/mes o COP $499.000/año (2 meses gratis).
 - Subsidio cruzado: el ingreso de planes pagos financia el Plan Solidaridad (gratuito para afectados por la emergencia).
 - El Tutor Edú conoce los precios oficiales (ver <MODELO_COMERCIAL> en el System Instruction v5.3) y nunca inventa descuentos.
+
+## Blindaje de Know-How (v6.0+)
+- El nombre técnico del modelo de IA local es información interna. En superficies públicas (landing, header, respuestas de la IA, marketing) se usa exclusivamente "IA local en tu GPU / en tu dispositivo".

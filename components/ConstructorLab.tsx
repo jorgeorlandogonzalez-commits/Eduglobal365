@@ -30,14 +30,18 @@ const ConstructorLab: React.FC<ConstructorLabProps> = ({ onStartProject, onRetur
   const [newProject, setNewProject] = useState({ title: '', description: '', impactMetric: '' });
 
   useEffect(() => {
-    const loadedProfile = StorageService.loadBuilderProfile() || {
-      name: 'Constructor',
-      focusArea: 'Desarrollo Web',
-      level: 1,
-      projectsCompleted: 0
-    };
-    setProfile(loadedProfile);
-    setProjects(StorageService.getBuilderProjects());
+    async function loadData() {
+      const loadedProfile = await StorageService.loadBuilderProfile() || {
+        name: 'Constructor',
+        focusArea: 'Desarrollo Web',
+        level: 1,
+        projectsCompleted: 0
+      };
+      setProfile(loadedProfile);
+      const proj = await StorageService.getBuilderProjects();
+      setProjects(proj || []);
+    }
+    loadData();
   }, []);
 
   const handleCreateProject = async (e: React.FormEvent) => {
@@ -60,11 +64,11 @@ const ConstructorLab: React.FC<ConstructorLabProps> = ({ onStartProject, onRetur
       // Actualizar proyecto existente
       const updatedProjects = projects.map(p => p.id === editingProjectId ? project : p);
       setProjects(updatedProjects);
-      FirestoreService.saveBuilderProject(project);
+      StorageService.saveBuilderProject(project);
       setEditingProjectId(null);
     } else {
       // Crear nuevo proyecto
-      FirestoreService.saveBuilderProject(project);
+      StorageService.saveBuilderProject(project);
       setProjects([...projects, project]);
     }
     
@@ -82,17 +86,11 @@ const ConstructorLab: React.FC<ConstructorLabProps> = ({ onStartProject, onRetur
     setShowNewProjectModal(true);
   };
 
-  const handleDeleteProject = (projectId: string) => {
+  const handleDeleteProject = async (projectId: string) => {
     if (window.confirm('¿Estás seguro de eliminar este proyecto?')) {
       const updatedProjects = projects.filter(p => p.id !== projectId);
       setProjects(updatedProjects);
-      // TODO: Implement actual delete in FirestoreService. For now update local state
-      const allProjects = projects.filter(p => p.id !== projectId);
-    try {
-      localStorage.setItem('eduglobal_builder_projects', JSON.stringify(allProjects));
-    } catch (e) {
-      console.warn('localStorage not accessible for project save');
-    }
+      await StorageService.deleteBuilderProject(projectId);
     }
   };
 
