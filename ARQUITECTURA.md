@@ -8,7 +8,7 @@ EduGlobal365 es un sistema educativo avanzado (B2B2C / B2G) diseñado bajo el mo
 ### 1. Offline-First Absoluto (Local First)
 La aplicación está diseñada asumiendo que **no hay internet por defecto**:
 - **Base de Datos Local (`idb`)**: Uso intensivo de `IndexedDB` a través de `StorageService` como la única y verdadera fuente de la verdad en tiempo de ejecución.
-- **IA Local (`WebLLM`)**: Inferencia en el dispositivo mediante el modelo `Gemma 2B` usando WebGPU. Permite respuestas conversacionales socráticas de IA sin latencia de red ni consumo de datos.
+- **IA Local (`WebLLM`)**: Inferencia en el dispositivo mediante un modelo local privado usando WebGPU. El nombre técnico es información interna (know-how). Permite respuestas conversacionales socráticas de IA sin latencia de red ni consumo de datos.
 - **Sincronización Diferida (`FirebaseSyncService`)**: Firestore actúa únicamente como un "espejo" de respaldo. Cuando la PWA detecta conexión (`window.addEventListener('online')`), vacía la cola local y sube el progreso, mensajes y analíticas.
 - **Smart Downloads (`DownloadService`)**: Capacidad de compilar el estado actual del chat, RAG y metadata en paquetes funcionales. Esto permite exportar módulos enteros a una memoria USB ("Preparar para la Vereda") y ejecutarlos o compartirlos en cualquier contexto:
   - Generación de paquetes HTML autocontenidos con Service Worker inyectado.
@@ -32,7 +32,7 @@ El sistema aísla y adapta los flujos de usuario (Roles):
 
 ## Mapa de Servicios Core
 - `services/storageService.ts`: Capa de persistencia asíncrona local (IndexedDB).
-- `services/webLLMService.ts`: Wrapper para `@mlc-ai/web-llm` (Gemma 2B).
+- `services/webLLMService.ts`: Wrapper para `@mlc-ai/web-llm` (modelo local privado).
 - `services/geminiService.ts`: Controlador híbrido de IA. Enruta a Gemini 3.1 Pro (Nube) si hay red, o hace fallback a `webLLMService` (Local) / estático si no hay red.
 - `services/downloadService.ts`: Motor de empaquetado de archivos `.html`, `.pdf`, `.json` y `.txt`. También permite importar paquetes `.json` compartidos por otros usuarios. Cuenta con recolección de basura para paquetes viejos (`cleanupExpiredPackages`).
 - `config/firebase.ts`: Inicialización en la nube, Autenticación anónima y Auto-Sync.
@@ -48,8 +48,13 @@ El sistema aísla y adapta los flujos de usuario (Roles):
 
 ## Modelo Comercial SAS BIC
 - Precio único estudiante: COP $49.900/mes o COP $499.000/año (2 meses gratis).
-- Subsidio cruzado: el ingreso de planes pagos financia el Plan Solidaridad (gratuito para afectados por la emergencia).
 - El Tutor Edú conoce los precios oficiales (ver <MODELO_COMERCIAL> en el System Instruction v5.3) y nunca inventa descuentos.
 
 ## Blindaje de Know-How (v6.0+)
-- El nombre técnico del modelo de IA local es información interna. En superficies públicas (landing, header, respuestas de la IA, marketing) se usa exclusivamente "IA local en tu GPU / en tu dispositivo".
+- El nombre técnico del modelo de IA local es información interna. En superficies públicas (landing, header, respuestas de la IA, marketing, **documentación pública**) se usa exclusivamente "IA local en tu GPU / en tu dispositivo".
+- **NUNCA** usar "Gemma", "Gemma 2B", "Gemma 4" ni ningún nombre técnico de modelo en:
+  - LandingPage.tsx (hero, features, tracks, footer)
+  - App.tsx (botón 🤖 del header, alertas, títulos)
+  - System Instruction (respuestas de Tutor Edú)
+  - ONBOARDING.md y ARQUITECTURA.md (en secciones visibles públicamente)
+  - Marketing, demos, capturas de pantalla

@@ -29,7 +29,7 @@ Para asegurar que todo el motor funciona correctamente, te sugerimos seguir este
 
 ### 1. Inicializa la Inteligencia Artificial Local (WebLLM)
 1. En la barra de navegación (Header), haz clic en el botón con el ícono del Robot 🤖 (Botón WebLLM).
-2. Verás una barra de progreso mientras tu navegador descarga el modelo **Gemma 2B**.
+2. Verás una barra de progreso mientras tu navegador descarga el modelo de IA local privado.
 3. Una vez alcance el 100%, el botón se pondrá en verde. ¡Felicidades! Tienes un cerebro de IA operando directamente en tu tarjeta gráfica, sin depender de servidores.
 
 ### 2. Prueba el "Modo Vereda" (Offline Test)
@@ -62,7 +62,12 @@ Para asegurar que todo el motor funciona correctamente, te sugerimos seguir este
 |------|--------------------------|---------|
 | Mensual | $49.900/mes | Bachillerato 8°–11°, ICFES, Idiomas, modo offline, IA local |
 | Anual | $499.000/año | Todo lo anterior + 2 meses gratis (ahorra $99.800) |
-| Solidaridad | $0 | Jóvenes afectados por la emergencia, vía subsidio cruzado |
 
-## Nota de Marca
-- No usar nombres de modelos de IA en capturas, demos públicas o marketing. Usar "IA local".
+## Nota de Marca (Blindaje de Know-How)
+- **Prohibido** mencionar nombres técnicos de modelos de IA ("Gemma", "Gemma 2B", "Gemma 4", "Llama", etc.) en:
+  - Capturas de pantalla
+  - Demos públicas
+  - Marketing y comunicaciones
+  - Respuestas del Tutor Edú
+- **Usar siempre**: "IA local en tu GPU" / "IA local en tu dispositivo" / "motor local privado".
+- Esta regla protege el know-how de la compañía y es coherente con el blindaje definido en ARQUITECTURA.md v6.0+.
