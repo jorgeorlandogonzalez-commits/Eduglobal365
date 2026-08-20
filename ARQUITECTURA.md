@@ -19,7 +19,7 @@ La aplicación está diseñada asumiendo que **no hay internet por defecto**:
 ### 2. Dual-Track System
 El sistema aísla y adapta los flujos de usuario (Roles):
 - **Track Estudiante**: Foco en preparación Saber 11 (ICFES), estándares DBA (Derechos Básicos de Aprendizaje), y micro-learning socrático. Gamificado con puntos y medallas.
-- **Track Constructor**: Metodología "Build with Purpose". Orientado a jóvenes que desean desarrollar proyectos de impacto social, definiendo Stack Técnico y Métricas de Impacto, con soporte de IA tipo "Coach Técnico".
+- **Categoría Habilidades para la Vida** (dentro del Track Estudiante): Formación NO formal (finanzas, emprendimiento, comunicación, alfabetización digital) con certificado de finalización. Sustituye al antiguo "Track Constructor" público (eliminado en v6.1 por decisión de modelo de negocio: sin marketplace de terceros).
 - **Track Docente/Admin**: Capacidad de auto-generar materiales alineados a los currículos (DBA) y reportar métricas de cobertura B2G.
 
 ### 3. Audio-First (Micro-learning Ping-Pong)

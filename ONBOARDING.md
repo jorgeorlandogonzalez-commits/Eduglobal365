@@ -16,15 +16,14 @@ EduGlobal365 detecta el rol del usuario para transformar radicalmente su interfa
 - **Cómo usarlo**: Ingresa al *Campus Virtual*, selecciona una materia (Silo), escucha el audio introductorio y responde los retos o "Quizzes Flash" que te lanza el Tutor Edú.
 - **Herramienta estrella**: Exportación Inteligente (`DownloadService`) que permite **"Preparar para la Vereda"** generando un paquete HTML, PDF, Texto o JSON para importar y exportar progreso a través de USB o Bluetooth.
 
-### 🛠️ Track Constructor
-- **Misión**: Capacitar líderes comunitarios, emprendedores y programadores.
-- **Cómo usarlo**: Entra al *Constructor Lab*. En lugar de materias, gestionas **Proyectos**. La IA actuará como tu Coach Técnico de diseño e implementación (Metodología "Build with Purpose").
-- **Herramienta estrella**: Exportador de "Paquetes de Arquitectura" (HTML con metadata técnica, código y estado del proyecto).
+### 🌱 Habilidades para la Vida
+- **Misión**: Formación NO formal para el trabajo y la vida diaria (finanzas, emprendimiento, comunicación, alfabetización digital).
+- **Cómo usarlo**: Ingresa al *Campus Virtual*, selecciona el bloque "Habilidades para la Vida".
+- **Herramienta estrella**: Al finalizar cualquiera de los 4 cursos cortos, obtienes un certificado de finalización de carácter privado. Esta categoría está 100% incluida en la suscripción principal.
 
 ---
 
 ## ⚡ Guía de Pruebas (La Prueba de Fuego)
-
 Para asegurar que todo el motor funciona correctamente, te sugerimos seguir este flujo de validación:
 
 ### 1. Inicializa la Inteligencia Artificial Local (WebLLM)

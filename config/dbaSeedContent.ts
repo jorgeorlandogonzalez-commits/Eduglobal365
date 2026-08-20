@@ -35,6 +35,16 @@ export interface InteractionPoint {
 }
 
 export const INTERACTION_POINTS: Record<string, InteractionPoint[]> = {
+
+  "VIDA-FIN-01": [
+    { timestamp: 45, type: 'question', payload: '[QUIZ_FLASH]' },
+    { timestamp: 120, type: 'challenge', payload: '[RETO_VEREDA]' }
+  ],
+  "VIDA-EMP-01": [
+    { timestamp: 45, type: 'question', payload: '[QUIZ_FLASH]' },
+    { timestamp: 120, type: 'challenge', payload: '[RETO_VEREDA]' }
+  ],
+
   // === MATEMÁTICAS 9° ===
   "MAT-09-DBA-01": [
     { timestamp: 45, prompt: "Si en una finca de Urabá hay 12 filas de plátanos y cada fila tiene 8 plantas, ¿cuántas plantas hay en total? Piensa antes de responder...", type: "question", expectedTimeSeconds: 30 },

@@ -8,7 +8,7 @@ interface CampusMapProps {
   onSelectTool: (tool: string) => void;
   student: StudentProfile;
   userRole: UserRole; // ✅ NUEVO: Para segmentación Dual-Track
-  onSwitchTrack?: () => void; // ✅ NUEVO: Navegación condicional a ConstructorLab
+   // ✅ NUEVO: Navegación condicional a ConstructorLab
   onOpenRewards?: () => void;
   onStartGeneralChat?: () => void;
 }
@@ -18,8 +18,7 @@ const CampusMap: React.FC<CampusMapProps> = ({
   onSelectTool, 
   student, 
   userRole, 
-  onSwitchTrack,
-  onOpenRewards,
+    onOpenRewards,
   onStartGeneralChat
 }) => {
   return (
@@ -63,17 +62,7 @@ const CampusMap: React.FC<CampusMapProps> = ({
               </div>
             </div>
 
-            {/* ✅ NUEVO: Botón de cambio de Track (Dual-Track Architecture) */}
-            {userRole === 'student' && onSwitchTrack && (
-              <button 
-                onClick={onSwitchTrack}
-                className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white px-4 py-3 rounded-xl font-medium text-sm transition-all shrink-0 hover:scale-105 active:scale-95"
-                aria-label="Cambiar a Track Constructor: Formación técnica para emprendedores"
-              >
-                <span className="text-xl">🛠️</span>
-                <span>Ir a Track Constructor</span>
-              </button>
-            )}
+            
           </div>
           {/* Decorative circles */}
           <div className="absolute top-0 right-0 -mt-10 -mr-10 w-40 h-40 bg-white opacity-10 rounded-full blur-2xl"></div>
@@ -197,6 +186,25 @@ const CampusMap: React.FC<CampusMapProps> = ({
               <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">🎨</div>
               <h4 className="font-bold text-slate-800 dark:text-slate-100 text-lg">Artes</h4>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Educación Artística</p>
+            </button>
+          </div>
+        </div>
+
+        {/* BLOQUE D: HABILIDADES PARA LA VIDA */}
+        <div className="mb-8">
+          <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+            <span className="w-8 h-1 bg-emerald-600 rounded-full"></span>
+            Bloque D: Habilidades para la Vida
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <button 
+              onClick={() => onSelectSubject("Habilidades para la Vida")} 
+              className="group bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-all hover:-translate-y-1 text-left"
+              aria-label="Entrar a Habilidades para la Vida: finanzas, emprendimiento, comunicación y digital"
+            >
+              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform">🌱</div>
+              <h4 className="font-bold text-slate-800 dark:text-slate-100 text-lg">Habilidades para la Vida</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Finanzas, emprendimiento, comunicación, digital · Con certificado</p>
             </button>
           </div>
         </div>

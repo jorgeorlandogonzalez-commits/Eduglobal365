@@ -22,6 +22,8 @@ export enum StudyMode {
 
 export type AppView = 'LANDING' | 'CAMPUS' | 'SUBJECT_DASHBOARD' | 'CLASSROOM' | 'TEACHER_PORTAL' | 'CONSTRUCTOR_LAB' | 'REWARDS';
 
+// ✅ v6.1: 'builder' se mantiene SOLO por retrocompatibilidad de storage/gemini.
+// El Track Constructor público fue eliminado (decisión PM v6.1).
 export type UserRole = 'student' | 'teacher' | 'builder' | 'admin';
 
 export interface BuilderProfile {

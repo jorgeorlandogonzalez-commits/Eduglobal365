@@ -10,8 +10,7 @@ interface LandingPageProps {
   studentGrade: Grade;
   onGradeChange: (g: Grade) => void;
   onTeacherAccess: () => void;
-  onConstructorAccess: () => void;
-  onProfileUpdate?: (name: string, grade: Grade) => void;
+    onProfileUpdate?: (name: string, grade: Grade) => void;
 }
 
 const LandingPage: React.FC<LandingPageProps> = ({
@@ -20,8 +19,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
   studentGrade,
   onGradeChange,
   onTeacherAccess,
-  onConstructorAccess,
-  onProfileUpdate
+    onProfileUpdate
 }) => {
   const [gmailUser, setGmailUser] = useState<string>('');
   const [showStudentOnboarding, setShowStudentOnboarding] = useState(false);
@@ -79,7 +77,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
     { icon: '🎯', title: 'Alineado al MEN (DBA)', desc: 'Cada reto y quiz cita el Derecho Básico de Aprendizaje oficial. Trazabilidad para el ICFES.' },
     { icon: '🎧', title: 'Audio-First Ping-Pong', desc: 'Podcasts que se pausan solos para lanzarte retos. Aprender escuchando, como NotebookLM.' },
     { icon: '📤', title: 'Comparte por USB/Bluetooth', desc: 'Exporta tu progreso en JSON y pásalo a un compañero de vereda sin internet.' },
-    { icon: '🛠️', title: 'Track Constructor', desc: 'Si programas o emprendes, adopta módulos educativos y construye soluciones reales.' },
+    { icon: '🌱', title: 'Habilidades para la Vida', desc: 'Cursos cortos no formales con certificado: finanzas, emprendimiento, comunicación y digital.' },
   ];
 
   return (
@@ -191,28 +189,32 @@ const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* TRACKS */}
       <section id="tracks" className="max-w-6xl mx-auto px-4 py-16">
-        <h2 className="text-3xl font-black text-center mb-10">Un ecosistema, tres caminos</h2>
-        <div className="grid md:grid-cols-3 gap-5">
-          <div className="rounded-2xl border border-blue-500/40 bg-blue-950/30 p-6">
-            <span className="text-3xl">🎓</span>
-            <h3 className="font-bold mt-3 mb-1">Track Estudiante</h3>
-            <p className="text-sm text-slate-400 mb-4">Valida tu bachillerato y domina el ICFES con retos de tu región.</p>
-            <button onClick={handleStudentAccess} className="w-full bg-blue-600 hover:bg-blue-500 rounded-full py-2.5 text-sm font-bold">Comenzar a estudiar</button>
-          </div>
-          <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-6">
-            <span className="text-3xl">🛠️</span>
-            <h3 className="font-bold mt-3 mb-1">Track Constructor</h3>
-            <p className="text-sm text-slate-400 mb-4">Emprende y adopta módulos educativos con impacto social medible.</p>
-            <button onClick={onConstructorAccess} className="w-full border border-emerald-500 text-emerald-300 hover:bg-emerald-500/10 rounded-full py-2.5 text-sm font-bold">Entrar al Lab</button>
-          </div>
-          <div className="rounded-2xl border border-purple-500/40 bg-purple-950/30 p-6">
-            <span className="text-3xl">👨🏫</span>
-            <h3 className="font-bold mt-3 mb-1">Track Docente</h3>
-            <p className="text-sm text-slate-400 mb-4">Genera Audio Overviews y quizzes alineados a DBA con un clic.</p>
-            <button onClick={onTeacherAccess} className="w-full border border-purple-500 text-purple-300 hover:bg-purple-500/10 rounded-full py-2.5 text-sm font-bold">Portal Docente</button>
-          </div>
-        </div>
-      </section>
+  <h2 className="text-3xl font-black text-center mb-3">Una suscripción. Dos mundos.</h2>
+  <p className="text-slate-400 text-center mb-10">Todo incluido con tu plan: académico y habilidades para la vida.</p>
+  <div className="grid md:grid-cols-2 gap-5">
+    <div className="rounded-2xl border border-blue-500/40 bg-blue-950/30 p-6">
+      <span className="text-3xl">🎓</span>
+      <h3 className="font-bold mt-3 mb-1">Formación Académica (DBA/MEN)</h3>
+      <p className="text-sm text-slate-400 mb-4">Matemáticas, Ciencias, Sociales, Humanidades e Inglés (8°–11°), preparación ICFES y simulacros, alineados al currículo oficial.</p>
+      <ul className="text-xs text-slate-300 space-y-1">
+        <li>✅ Tutor IA socrático offline</li>
+        <li>✅ Podcasts descargables</li>
+        <li>✅ Simulacros tipo ICFES</li>
+      </ul>
+    </div>
+    <div className="rounded-2xl border border-emerald-500/40 bg-emerald-950/30 p-6">
+      <span className="text-3xl">🌱</span>
+      <h3 className="font-bold mt-3 mb-1">Habilidades para la Vida</h3>
+      <p className="text-sm text-slate-400 mb-4">Formación NO formal para el trabajo y la vida diaria, con certificado de finalización.</p>
+      <ul className="text-xs text-slate-300 space-y-1">
+        <li>✅ Finanzas personales</li>
+        <li>✅ Emprendimiento y negocio local</li>
+        <li>✅ Comunicación y liderazgo</li>
+        <li>✅ Alfabetización digital</li>
+      </ul>
+    </div>
+  </div>
+</section>
 
       {/* FOOTER */}
       <footer className="border-t border-slate-800 py-8">
@@ -221,8 +223,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex gap-4">
             <a href="/legal/terms.html" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300 underline">Términos y Condiciones</a>
             <button onClick={onTeacherAccess} className="hover:text-slate-300">Docentes</button>
-            <button onClick={onConstructorAccess} className="hover:text-slate-300">Constructores</button>
-          </div>
+                      </div>
         </div>
       </footer>
 

@@ -18,7 +18,6 @@ import CampusMap from './components/CampusMap';
 import LandingPage, { Grade } from './components/LandingPage';
 import TeacherPortal from './components/TeacherPortal';
 import SubjectDashboard from './components/SubjectDashboard';
-import ConstructorLab from './components/ConstructorLab';
 import { RewardShop } from './components/RewardShop';
 import { AchievementPopup, Achievement } from './components/AchievementPopup';
 import { OfflineManager } from './components/OfflineManager';
@@ -659,10 +658,6 @@ const App: React.FC = () => {
           setUserRole('teacher');
           setCurrentView('TEACHER_PORTAL');
         }}
-        onConstructorAccess={() => {
-          setUserRole('builder');
-          setCurrentView('CONSTRUCTOR_LAB');
-        }}
         studentName={student.name}
         studentGrade={student.grade as Grade}
         onGradeChange={(grade) => setStudent(prev => ({ ...prev, grade }))}
@@ -694,26 +689,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (currentView === 'CONSTRUCTOR_LAB') {
-    return (
-      <ConstructorLab
-        onReturn={() => setCurrentView('LANDING')}
-        onStartProject={async (project) => {
-          setActiveSubject(project.title);
-          setCurrentView('CLASSROOM');
-          setIsSidebarOpen(false);
-          const history = await StorageService.loadSubjectChat(project.title, 'builder');
-          setMessages(history);
-          if (history.length === 0) {
-            const entryText = `¡Hola Asistente! Voy a trabajar en el proyecto "${project.title}". Mi métrica de impacto es: ${project.impactMetric}. ¿Por dónde empezamos?`;
-            handleSendMessage(entryText, true);
-          }
-        }}
-      />
-    );
-  }
-
-  // ==========================================================================
+    // ==========================================================================
   // RENDER: MAIN APP LAYOUT
   // ==========================================================================
   return (
