@@ -85,8 +85,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
       <nav className="fixed top-0 w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-800 z-40">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🎒</span>
-            <span className="font-black tracking-tight">EduGlobal365</span>
+            <img src="/logo.png" alt="EduGlobal365 Logo" className="h-10 object-contain" />
           </div>
           <div className="hidden md:flex gap-6 text-sm font-medium text-slate-300">
             <button onClick={() => scrollTo('planes')} className="hover:text-white transition-colors">Planes</button>
@@ -219,7 +218,10 @@ const LandingPage: React.FC<LandingPageProps> = ({
       {/* FOOTER */}
       <footer className="border-t border-slate-800 py-8">
         <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© 2026 EduGlobal365 SAS BIC — Educación de élite para todos los colombianos.</p>
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="EduGlobal365" className="h-8 object-contain grayscale opacity-70" />
+            <p>© 2026 EduGlobal365 SAS BIC — Educación de élite para todos los colombianos.</p>
+          </div>
           <div className="flex gap-4">
             <a href="/legal/terms.html" target="_blank" rel="noopener noreferrer" className="hover:text-slate-300 underline">Términos y Condiciones</a>
             <button onClick={onTeacherAccess} className="hover:text-slate-300">Docentes</button>

@@ -698,14 +698,8 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between shadow-sm z-10 sticky top-0 transition-colors duration-300">
         <div className="flex items-center gap-2 cursor-pointer" onClick={handleReturnToCampus}>
-          <div className="bg-blue-600 dark:bg-blue-500 p-1.5 rounded-lg text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path d="M12 14l9-5-9-5-9 5 9 5z" />
-              <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-            </svg>
-          </div>
+          <img src="/logo.png" alt="EduGlobal365" className="h-10 object-contain mr-2" />
           <div>
-            <h1 className="font-bold text-lg text-slate-800 dark:text-slate-100 leading-none">{APP_NAME}</h1>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {currentView === 'CAMPUS' ? 'Campus Virtual' : activeSubject === 'Tutor Edú' ? 'Asistente Virtual' : `Módulo: ${activeSubject || 'General'}`}
             </p>
