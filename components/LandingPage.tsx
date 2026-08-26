@@ -83,9 +83,9 @@ const LandingPage: React.FC<LandingPageProps> = ({
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans overflow-x-hidden selection:bg-blue-500/30">
       <nav className="fixed top-0 w-full bg-slate-950/80 backdrop-blur-md border-b border-slate-800 z-40">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <img src="/logo.png" alt="EduGlobal365 Logo" className="h-10 object-contain" />
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center justify-center rounded-full overflow-hidden shadow-[0_0_15px_rgba(255,255,255,0.1)]">
+            <img src="/logo.png" alt="EduGlobal365 Logo" className="h-16 md:h-20 w-auto object-cover scale-[1.35] hover:scale-[1.4] transition-transform duration-300" />
           </div>
           <div className="hidden md:flex gap-6 text-sm font-medium text-slate-300">
             <button onClick={() => scrollTo('planes')} className="hover:text-white transition-colors">Planes</button>

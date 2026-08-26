@@ -698,7 +698,9 @@ const App: React.FC = () => {
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between shadow-sm z-10 sticky top-0 transition-colors duration-300">
         <div className="flex items-center gap-2 cursor-pointer" onClick={handleReturnToCampus}>
-          <img src="/logo.png" alt="EduGlobal365" className="h-10 object-contain mr-2" />
+          <div className="rounded-full overflow-hidden mr-3 shadow-sm border border-slate-200/50">
+            <img src="/logo.png" alt="EduGlobal365" className="h-12 md:h-14 w-auto object-cover scale-[1.35]" />
+          </div>
           <div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {currentView === 'CAMPUS' ? 'Campus Virtual' : activeSubject === 'Tutor Edú' ? 'Asistente Virtual' : `Módulo: ${activeSubject || 'General'}`}
