@@ -1,77 +1,12 @@
-import express from "express";
-import path from "path";
-import { GoogleGenAI } from "@google/genai";
-import dotenv from "dotenv";
-import crypto from "crypto";
+const fs = require('fs');
 
-dotenv.config();
+let server = fs.readFileSync('server.ts', 'utf-8');
 
-async function startServer() {
-  const app = express();
-  const PORT = parseInt(process.env.PORT || "3000", 10);
-
-  app.use(express.json());
-
-  // Iniciar cliente Gemini Server-Side de manera segura (No usar prefijo VITE_)
-  let aiClient: GoogleGenAI | null = null;
-  const getAiClient = () => {
-    if (!aiClient) {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        console.warn("⚠️ GEMINI_API_KEY no configurada en servidor. Peticiones fallarán.");
-      }
-      aiClient = new GoogleGenAI({ apiKey: apiKey || "demo-key" });
-    }
-    return aiClient;
-  };
-
-  // API ROUTES
-  app.post("/api/gemini/chat", async (req, res) => {
-    try {
-      const { contents, systemInstruction, temperature, topK, topP, maxOutputTokens } = req.body;
-      const ai = getAiClient();
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents,
-        config: {
-          systemInstruction,
-          temperature,
-          topK,
-          topP,
-          maxOutputTokens,
-        }
-      });
-      
-      res.json({ text: response.text });
-    } catch (error: any) {
-      console.error("Error from Gemini API:", error);
-      res.status(500).json({ error: error.message || "Failed to call Gemini" });
-    }
-  });
-
-  app.post("/api/gemini/generate", async (req, res) => {
-    try {
-      const { prompt } = req.body;
-      const ai = getAiClient();
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: { temperature: 0.8, maxOutputTokens: 600, responseMimeType: "application/json" }
-      });
-      
-      res.json({ text: response.text });
-    } catch (error: any) {
-      console.error("Error generating material:", error);
-      res.status(500).json({ error: error.message || "Failed to generate material" });
-    }
-  });
-
-  
+const wompiEndpoints = `
   // ========================================
   // 💳 WOMPI - Payment Backend Endpoints
   // ========================================
+  const crypto = require('crypto');
   
   const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY || '';
   const WOMPI_INTEGRITY_KEY = process.env.WOMPI_INTEGRITY_KEY || '';
@@ -85,7 +20,7 @@ async function startServer() {
       if (!amountInCents || !currency || !reference) {
         return res.status(400).json({ error: 'Faltan parámetros' });
       }
-      const signatureString = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_KEY}`;
+      const signatureString = \`\${reference}\${amountInCents}\${currency}\${WOMPI_INTEGRITY_KEY}\`;
       const signature = crypto.createHash('sha256').update(signatureString).digest('hex');
       res.json({ signature });
     } catch (err) {
@@ -98,7 +33,7 @@ async function startServer() {
   app.post('/api/wompi/register-pending', async (req, res) => {
     try {
       const { userId, plan, transactionId, reference } = req.body;
-      console.log(`📝 Transacción pendiente: ${transactionId} | usuario ${userId} | plan ${plan}`);
+      console.log(\`📝 Transacción pendiente: \${transactionId} | usuario \${userId} | plan \${plan}\`);
       // TODO: escribir en Firestore users/{userId}/subscription = { status: 'pending' }
       res.json({ success: true, transactionId });
     } catch (err) {
@@ -124,7 +59,7 @@ async function startServer() {
         const now = Date.now();
         const daysToAdd = plan === 'annual' ? 365 : 30;
         const expiresAt = now + (daysToAdd * 24 * 60 * 60 * 1000);
-        console.log(`✅ Suscripción ACTIVADA: usuario ${userId} | plan ${plan} | expira ${new Date(expiresAt).toISOString()}`);
+        console.log(\`✅ Suscripción ACTIVADA: usuario \${userId} | plan \${plan} | expira \${new Date(expiresAt).toISOString()}\`);
         // TODO: actualizar Firestore users/{userId}/subscription
       }
       
@@ -167,33 +102,9 @@ async function startServer() {
   });
 
   // Vite middleware for development
+`;
 
-  if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get(/(.*)/, (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
+server = server.replace('// Vite middleware for development', wompiEndpoints);
+fs.writeFileSync('server.ts', server, 'utf-8');
 
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  });
-
-  server.on('error', (err) => {
-    console.error("Failed to start server:", err);
-    process.exit(1);
-  });
-}
-
-startServer().catch(err => {
-  console.error("Failed to start server process:", err);
-  process.exit(1);
-});
+console.log("Done");

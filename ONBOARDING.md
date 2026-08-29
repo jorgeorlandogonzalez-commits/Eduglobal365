@@ -70,3 +70,14 @@ Para asegurar que todo el motor funciona correctamente, te sugerimos seguir este
   - Respuestas del Tutor Edú
 - **Usar siempre**: "IA local en tu GPU" / "IA local en tu dispositivo" / "motor local privado".
 - Esta regla protege el know-how de la compañía y es coherente con el blindaje definido en ARQUITECTURA.md v6.0+.
+
+## 💳 Activación de Suscripción
+Al iniciar sesión con Gmail, si no tienes suscripción activa (y no eres cuenta privilegiada), aparecerá el modal de pago:
+1. Selecciona plan Mensual ($49.900) o Anual ($499.000).
+2. Haz clic en "Pagar con Wompi".
+3. Elige método: PSE, tarjeta, Nequi, Daviplata o efectivo.
+4. Confirma el pago.
+5. Acceso inmediato al Campus.
+
+## 👑 Cuentas Privilegiadas
+Ciertos usuarios (personal interno de pruebas, aliados B2G/B2B) tienen acceso gratuito permanente. Se identifican por un badge "👑 Superusuario Pruebas" en el header.

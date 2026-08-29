@@ -11,7 +11,10 @@ import { sendMessageToGemini, checkRealConnection } from './services/geminiServi
 import { StorageService } from './services/storageService';
 import { DownloadService } from './services/downloadService';
 import { webLLMInstance } from './services/webLLMService';
-import { signInSilently, signInWithGoogle, logout, observeAuth } from './config/firebase';
+import PaymentModal from './components/PaymentModal';
+import { checkSubscriptionStatus } from './services/paymentService';
+import { checkPrivilegedAccess, PrivilegedStatus } from './services/privilegedAccessService';
+import { signInSilently, signInWithGoogle, logout, observeAuth, auth } from './config/firebase';
 import type { User } from 'firebase/auth';
 import ChatBubble from './components/ChatBubble';
 import CampusMap from './components/CampusMap';
@@ -47,6 +50,37 @@ const App: React.FC = () => {
   const [showOfflineManager, setShowOfflineManager] = useState(false);
   const [dataSaverMode, setDataSaverMode] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [subscriptionActive, setSubscriptionActive] = useState<boolean | null>(null);
+  const [privilegedStatus, setPrivilegedStatus] = useState<PrivilegedStatus>({ isPrivileged: false });
+
+  useEffect(() => {
+    const checkSub = async () => {
+      if (currentView === 'LANDING' || currentView === 'TEACHER_PORTAL') {
+        setSubscriptionActive(true);
+        return;
+      }
+      if (!auth?.currentUser) return;
+      
+      const privileged = checkPrivilegedAccess();
+      setPrivilegedStatus(privileged);
+      
+      const status = await checkSubscriptionStatus();
+      setSubscriptionActive(status.active);
+      
+      if (!status.active && !privileged.isPrivileged) {
+        setShowPaymentModal(true);
+      }
+    };
+    checkSub();
+  }, [currentView, auth?.currentUser]);
+
+  const handlePaymentSuccess = async () => {
+    setShowPaymentModal(false);
+    const status = await checkSubscriptionStatus();
+    setSubscriptionActive(status.active);
+    alert('🎉 ¡Bienvenid@ a EduGlobal365! Tu suscripción está activa.');
+  };
 
   useEffect(() => {
     const initApp = async () => {
@@ -689,7 +723,25 @@ const App: React.FC = () => {
     );
   }
 
-    // ==========================================================================
+    if (subscriptionActive === false && 
+      currentView !== 'LANDING' && 
+      currentView !== 'TEACHER_PORTAL' && 
+      auth?.currentUser &&
+      !privilegedStatus.isPrivileged) {
+    return (
+      <PaymentModal
+        userEmail={auth?.currentUser.email || ''}
+        userName={student.name}
+        onSuccess={handlePaymentSuccess}
+        onClose={() => {
+          setShowPaymentModal(false);
+          setCurrentView('LANDING');
+        }}
+      />
+    );
+  }
+
+  // ==========================================================================
   // RENDER: MAIN APP LAYOUT
   // ==========================================================================
   return (
@@ -702,6 +754,14 @@ const App: React.FC = () => {
             <img src="/logo.png" alt="EduGlobal365" className="h-12 md:h-14 w-auto object-cover scale-[1.35]" />
           </div>
           <div>
+            <div className="flex items-center">
+              <h1 className="font-bold text-lg text-slate-800 dark:text-slate-100 leading-none">{APP_NAME}</h1>
+              {privilegedStatus.isPrivileged && (
+                <div className="ml-2 px-2 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold rounded-full border border-amber-300 dark:border-amber-700 animate-pulse">
+                  {privilegedStatus.label}
+                </div>
+              )}
+            </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               {currentView === 'CAMPUS' ? 'Campus Virtual' : activeSubject === 'Tutor Edú' ? 'Asistente Virtual' : `Módulo: ${activeSubject || 'General'}`}
             </p>

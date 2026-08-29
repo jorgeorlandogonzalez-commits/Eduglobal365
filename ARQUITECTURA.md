@@ -58,3 +58,15 @@ El sistema aísla y adapta los flujos de usuario (Roles):
   - System Instruction (respuestas de Tutor Edú)
   - ONBOARDING.md y ARQUITECTURA.md (en secciones visibles públicamente)
   - Marketing, demos, capturas de pantalla
+
+## 💳 Integración de Pagos (Wompi) y Cuentas Privilegiadas
+- Pasarela: **Wompi** (colombiana, PCI-DSS, soporta PSE/tarjetas/Nequi/Daviplata/efectivo).
+- Arquitectura: Public Key en frontend, Private/Integrity Keys solo en backend (`server.ts`).
+- Firma de integridad generada server-side con SHA256 (anti-fraude).
+- Webhook de Wompi confirma pagos asíncronamente y actualiza Firestore.
+- **Paywall** bloquea el Campus si `subscription.expiresAt < Date.now()` y el usuario no es privilegiado.
+- **Sistema de Cuentas Privilegiadas** (`privilegedAccessService.ts`):
+  - Lista de emails con acceso gratuito permanente (superusuarios, B2G, B2B).
+  - Badge visual "👑 Superusuario Pruebas" en header y sidebar.
+  - Bypass automático del paywall.
+  - Patrón reutilizable para cuentas de convenio institucional.
