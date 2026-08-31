@@ -76,23 +76,6 @@ const App: React.FC = () => {
     checkSub();
   }, [currentView, auth?.currentUser]);
 
-  // ✅ OT#7.3-v2: Confirmar pago al volver del redirect de Wompi
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const ref = params.get('reference') || '';
-    const txId = params.get('transactionId') || params.get('transaction_id') || params.get('id') || '';
-    const isReturn = ref.startsWith('edu365_') || window.location.pathname.includes('payment/success');
-    if (isReturn) {
-      fetch('/api/wompi/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reference: ref, transactionId: txId })
-      }).then(() => {
-        window.history.replaceState({}, '', window.location.pathname);
-      }).catch(() => {});
-    }
-  }, []);
-
   const handlePaymentSuccess = async () => {
     setShowPaymentModal(false);
     const status = await checkSubscriptionStatus();

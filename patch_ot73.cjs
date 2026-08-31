@@ -1,77 +1,67 @@
-import express from "express";
-import admin from 'firebase-admin';
-import fs from 'fs';
-import path from "path";
-import { GoogleGenAI } from "@google/genai";
-import dotenv from "dotenv";
-import crypto from "crypto";
+const fs = require('fs');
 
-dotenv.config();
+let server = fs.readFileSync('server.ts', 'utf-8');
 
-async function startServer() {
-  const app = express();
-  const PORT = parseInt(process.env.PORT || "3000", 10);
+// Add imports
+if (!server.includes("import admin from 'firebase-admin';")) {
+  server = server.replace('import express from "express";', "import express from \"express\";\nimport admin from 'firebase-admin';\nimport fs from 'fs';");
+}
 
-  app.use(express.json());
+// Add the setup block after WOMPI_PRIVATE_KEY
+const wompiKeyMarker = "const WOMPI_PRIVATE_KEY = process.env.WOMPI_PRIVATE_KEY || '';";
+const setupBlock = `
+// ✅ OT#7.3-v2: Firebase Admin para suscripciones (server-side, seguro)
+const saB64 = process.env.FIREBASE_SERVICE_ACCOUNT_B64 || '';
+if (saB64 && admin.apps.length === 0) {
+  try {
+    const saJson = JSON.parse(Buffer.from(saB64, 'base64').toString('utf8'));
+    admin.initializeApp({ credential: admin.credential.cert(saJson) });
+    console.log('✅ Firebase Admin inicializado (paywall REAL activo)');
+  } catch (e) {
+    console.error('❌ Error inicializando Firebase Admin:', e);
+  }
+} else if (!saB64) {
+  console.warn('⚠️ FIREBASE_SERVICE_ACCOUNT_B64 no configurada: paywall en MODO ABIERTO (solo desarrollo).');
+}
 
-  // Iniciar cliente Gemini Server-Side de manera segura (No usar prefijo VITE_)
-  let aiClient: GoogleGenAI | null = null;
-  const getAiClient = () => {
-    if (!aiClient) {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-      if (!apiKey) {
-        console.warn("⚠️ GEMINI_API_KEY no configurada en servidor. Peticiones fallarán.");
-      }
-      aiClient = new GoogleGenAI({ apiKey: apiKey || "demo-key" });
+const WOMPI_BASE = (process.env.WOMPI_ENV === 'sandbox') ? 'https://sandbox.wompi.co' : 'https://production.wompi.co';
+const WOMPI_WEBHOOK_SECRET = process.env.WOMPI_WEBHOOK_SECRET || process.env.WOMPI_EVENT_SECRET || '';
+
+const subDoc = (uid: string) => admin.firestore().collection('subscriptions').doc(uid);
+
+const findWompiTransaction = async (transactionId?: string, reference?: string): Promise<any> => {
+  try {
+    const headers = { Authorization: \`Bearer \${WOMPI_PRIVATE_KEY}\` };
+    if (transactionId) {
+      const r = await fetch(\`\${WOMPI_BASE}/v1/transactions/\${transactionId}\`, { headers });
+      if (r.ok) { const j = await r.json(); return j?.data || null; }
+      return null;
     }
-    return aiClient;
-  };
-
-  // API ROUTES
-  app.post("/api/gemini/chat", async (req, res) => {
-    try {
-      const { contents, systemInstruction, temperature, topK, topP, maxOutputTokens } = req.body;
-      const ai = getAiClient();
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents,
-        config: {
-          systemInstruction,
-          temperature,
-          topK,
-          topP,
-          maxOutputTokens,
-        }
-      });
-      
-      res.json({ text: response.text });
-    } catch (error: any) {
-      console.error("Error from Gemini API:", error);
-      res.status(500).json({ error: error.message || "Failed to call Gemini" });
+    if (reference) {
+      const r = await fetch(\`\${WOMPI_BASE}/v1/transactions?reference=\${encodeURIComponent(reference)}\`, { headers });
+      if (r.ok) { const j = await r.json(); return (j?.data || [])[0] || null; }
     }
-  });
+    return null;
+  } catch { return null; }
+};
 
-  app.post("/api/gemini/generate", async (req, res) => {
-    try {
-      const { prompt } = req.body;
-      const ai = getAiClient();
-      
-      const response = await ai.models.generateContent({
-        model: "gemini-2.0-flash",
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        config: { temperature: 0.8, maxOutputTokens: 600, responseMimeType: "application/json" }
-      });
-      
-      res.json({ text: response.text });
-    } catch (error: any) {
-      console.error("Error generating material:", error);
-      res.status(500).json({ error: error.message || "Failed to generate material" });
-    }
-  });
+const activateSubscription = async (userId: string, plan: 'monthly' | 'annual', transactionId: string) => {
+  const days = plan === 'annual' ? 365 : 30;
+  const expiresAt = Date.now() + days * 86400000;
+  await subDoc(userId).set({
+    status: 'active', plan, expiresAt, transactionId, activatedAt: Date.now()
+  }, { merge: true });
+  console.log(\`✅ Suscripción ACTIVADA: \${userId} | \${plan} | expira \${new Date(expiresAt).toISOString()}\`);
+  return expiresAt;
+};
+`;
 
-  
-  // ========================================
+if (!server.includes("✅ OT#7.3-v2")) {
+  server = server.replace(wompiKeyMarker, wompiKeyMarker + "\n" + setupBlock);
+}
+
+// Replace the endpoints block
+const newEndpoints = `// ========================================
 // 💳 WOMPI - Payment Backend Endpoints (OT#7.3-v2)
 // ========================================
 
@@ -79,7 +69,7 @@ app.post('/api/wompi/signature', async (req: any, res: any) => {
   try {
     const { amountInCents, currency, reference } = req.body;
     if (!amountInCents || !currency || !reference) return res.status(400).json({ error: 'Faltan parámetros' });
-    const signatureString = `${reference}${amountInCents}${currency}${WOMPI_INTEGRITY_KEY}`;
+    const signatureString = \`\${reference}\${amountInCents}\${currency}\${WOMPI_INTEGRITY_KEY}\`;
     const signature = crypto.createHash('sha256').update(signatureString).digest('hex');
     res.json({ signature });
   } catch (err) {
@@ -163,16 +153,26 @@ app.get('/api/privileged/check', async (req: any, res: any) => {
   res.json({ email, isPrivileged, type: isPrivileged ? 'superuser' : null, label: isPrivileged ? '👑 Superusuario Pruebas' : null });
 });
 
-// Vite middleware for development
+// Vite middleware for development`;
 
-  if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+// Extract from '// ========================================' to '// Vite middleware for development'
+// and replace.
+const startIndex = server.indexOf('// ========================================');
+const endIndex = server.indexOf('// Vite middleware for development');
+
+if (startIndex !== -1 && endIndex !== -1) {
+  server = server.substring(0, startIndex) + newEndpoints + server.substring(endIndex + '// Vite middleware for development'.length);
+}
+
+// Replace the fallback block (Anti-fragile)
+const oldFallback = `} else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get(/(.*)/, (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
     });
-    app.use(vite.middlewares);
-  } else {
+  }`;
+const newFallback = `} else {
     const distPath = path.join(process.cwd(), 'dist');
     const indexPath = path.join(distPath, 'index.html');
     if (fs.existsSync(indexPath)) {
@@ -186,19 +186,11 @@ app.get('/api/privileged/check', async (req: any, res: any) => {
       const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
       app.use(vite.middlewares);
     }
-  }
+  }`;
 
-  const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
-  });
-
-  server.on('error', (err) => {
-    console.error("Failed to start server:", err);
-    process.exit(1);
-  });
+if (server.includes(oldFallback)) {
+  server = server.replace(oldFallback, newFallback);
 }
 
-startServer().catch(err => {
-  console.error("Failed to start server process:", err);
-  process.exit(1);
-});
+fs.writeFileSync('server.ts', server, 'utf-8');
+console.log("Patched server.ts");
