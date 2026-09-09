@@ -20,9 +20,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ userEmail, userName, onSucc
     setError(null);
     try {
       await startWompiCheckout(selectedPlan, userEmail, userName);
-      // ✅ OT#7.6: El Widget de Wompi toma el control de la pantalla.
-      // La confirmación ocurre al volver del redirect (/payment/success).
-      // El modal permanece abierto por si el usuario cierra el widget sin pagar.
+      // ✅ El Widget toma el control; la confirmación ocurre al volver del redirect
       setIsProcessing(false);
     } catch (e: any) {
       setError(e.message || 'Error procesando pago');

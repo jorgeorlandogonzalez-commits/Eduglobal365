@@ -20,7 +20,10 @@ export const PLAN_LABELS: Record<SubscriptionPlan, string> = {
   annual: 'Anual ($499.000/año - 2 meses gratis)'
 };
 
-// ✅ OT#7.6: Script OFICIAL de Wompi (widget.js) — global `Widget`
+/**
+ * ✅ OT#7.6: Carga el script OFICIAL de Wompi (widget.js).
+ * El script antiguo (checkout.js) no existe → 404. El global real es `Widget`.
+ */
 const loadWompiScript = (): Promise<void> => {
   return new Promise((resolve, reject) => {
     if ((window as any).Widget) { resolve(); return; }
@@ -33,6 +36,9 @@ const loadWompiScript = (): Promise<void> => {
   });
 };
 
+/**
+ * Genera la firma de integridad en el BACKEND (por seguridad).
+ */
 const getSignatureFromBackend = async (amountInCents: number, currency: string, reference: string): Promise<string> => {
   const res = await fetch('/api/wompi/signature', {
     method: 'POST',
@@ -44,6 +50,9 @@ const getSignatureFromBackend = async (amountInCents: number, currency: string, 
   return data.signature;
 };
 
+/**
+ * Inicia el checkout de Wompi para una suscripción.
+ */
 export const startWompiCheckout = async (
   plan: SubscriptionPlan,
   customerEmail: string,
@@ -57,18 +66,21 @@ export const startWompiCheckout = async (
   await loadWompiScript();
   const WompiWidget = (window as any).Widget;
   if (!WompiWidget) throw new Error('Wompi Widget no disponible');
-  const amountInCents = PLAN_PRICES[plan] * 100;
+
+  const amountInCents = PLAN_PRICES[plan] * 100; // Wompi trabaja en centavos
   const currency = 'COP';
   const reference = `edu365_${user.uid}_${plan}_${Date.now()}`;
   const signature = await getSignatureFromBackend(amountInCents, currency, reference);
   const publicKey = import.meta.env.VITE_WOMPI_PUBLIC_KEY;
   if (!publicKey) throw new Error('VITE_WOMPI_PUBLIC_KEY no configurada');
+
   // Registro pending fire-and-forget (la activación real viene por redirect + webhook)
   fetch('/api/wompi/register-pending', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId: user.uid, plan, reference })
   }).catch(() => {});
+
   // ✅ OT#7.6: Widget oficial; el retorno es por redirectUrl
   const widget = new WompiWidget({
     publicKey,
@@ -76,8 +88,6 @@ export const startWompiCheckout = async (
     amountInCents,
     reference,
     signature,
-    customerEmail,
-    customerFullName: customerName,
     customerData: {
       email: customerEmail,
       fullName: customerName,
@@ -89,6 +99,10 @@ export const startWompiCheckout = async (
   widget.render();
 };
 
+/**
+ * Consulta el estado de suscripción del usuario activo.
+ * Los superusuarios siempre tienen suscripción activa.
+ */
 export const checkSubscriptionStatus = async (): Promise<{
   active: boolean;
   plan?: SubscriptionPlan | 'privileged';
@@ -102,7 +116,7 @@ export const checkSubscriptionStatus = async (): Promise<{
     return {
       active: true,
       plan: 'privileged',
-      expiresAt: Date.now() + (365 * 10 * 24 * 60 * 60 * 1000),
+      expiresAt: Date.now() + (365 * 10 * 24 * 60 * 60 * 1000), // 10 años
       daysRemaining: 3650,
       isPrivileged: true,
       privilegedLabel: privileged.label
