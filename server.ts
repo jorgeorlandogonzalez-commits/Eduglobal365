@@ -1,6 +1,14 @@
 // server.ts — EduGlobal365 v6.2 (OT#7.8)
 import express from "express";
-import admin from 'firebase-admin';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+const admin = {
+  get apps() { return getApps(); },
+  initializeApp: (opts: any) => initializeApp(opts),
+  credential: { cert },
+  firestore: (opts?: any) => opts && opts.databaseId ? getFirestore(undefined, opts.databaseId) : getFirestore()
+};
 import fs from 'fs';
 import path from "path";
 import { GoogleGenAI } from "@google/genai";
